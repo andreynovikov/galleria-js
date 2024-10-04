@@ -4,6 +4,10 @@ import { join } from 'path'
 
 import Image from '@/lib/image'
 
+const screenMaxWidth = Number(process.env.SCREEN_MAX_WIDTH)
+const exportMaxWidth = Number(process.env.EXPORT_MAX_WIDTH)
+const screenDelta = Number(process.env.SCREEN_DELTA)
+
 /*
  * https://www.ericburel.tech/blog/nextjs-stream-files#moving-to-route-handlers-its-not-that-easy
  */
@@ -14,38 +18,26 @@ async function* nodeStreamToIterator(stream) {
     }
 }
 
-function iteratorToStream(iterator) {
-    return new ReadableStream({
-        async pull(controller) {
-            const { value, done } = await iterator.next()
-            if (done)
-                controller.close()
-            else
-                controller.enqueue(value)
-        }
-    })
-}
-
 function streamFile(path) {
     const nodeStream = createReadStream(path)
-    const data = iteratorToStream(
-        nodeStreamToIterator(
-            nodeStream
-        )
-    )
-    return data
+    return ReadableStream.from(nodeStreamToIterator(nodeStream))
 }
 
 export async function GET(request, { params }) {
-    const { format, ratio, size: thumbnailSize, force } = Object.fromEntries(request.nextUrl.searchParams)
+    const format = request.nextUrl.searchParams.get('format')
+    const ratio = +request.nextUrl.searchParams.get('ratio') || 1.0
+    const thumbnailSize = request.nextUrl.searchParams.get('size') || 'm'
+    const force = request.nextUrl.searchParams.get('force')
     const image = Image.fromPath(request.nextUrl.pathname)
     const fileName = params.image.at(-1)
     let path
+    let stream
     let size
     let type
 
     if (format === 'thumbnail') {
-        ({ type, size, path } = await image.makeThumbnail(thumbnailSize, force?.toLowerCase() === 'true'))
+        ({ type, size, path } = await image.makeThumbnail(thumbnailSize, force))
+        stream = streamFile(path)
     } else {
         path = join(process.env.PHOTOS_FOLDER, request.nextUrl.pathname)
         try {
@@ -64,10 +56,34 @@ export async function GET(request, { params }) {
                 })
             }
         }
+        if (format === 'original') {
+            stream = streamFile(path)
+        } else {
+            await image.fetchData()
 
+            let width = screenMaxWidth
+        
+            if (format === 'export') {
+                width = exportMaxWidth
+                // log(image.id, db.LOG_STATUS_EXPORT)
+            } else {
+                // log(image.id, db.LOG_STATUS_VIEW)
+            }
+
+            if (ratio < 1)
+                width = Math.round(width * ratio)
+            if (image.width < image.height)
+                width = Math.round(image.width / image.height * width)
+            if (image.width > width * screenDelta) {
+                let data
+                ({ type, size, data } = await image.getResized(width))
+                const blob = new Blob([data])
+                stream = blob.stream()
+            } else {
+                stream = streamFile(path)
+            }
+        }
     }
-
-    const stream = streamFile(path)
 
     return new Response(stream, {
         status: 200,
