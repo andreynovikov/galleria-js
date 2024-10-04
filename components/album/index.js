@@ -18,7 +18,22 @@ export default function Album(props) {
     const [index, setIndex] = useState(-1)
 
     return <>
-        <MasonryPhotoAlbum photos={photos} onClick={({ index }) => setIndex(index)} />
+        <MasonryPhotoAlbum
+            photos={photos}
+            breakpoints={[400, 800, 1200]}
+            columns={(containerWidth) => {
+                if (containerWidth < 400) return 1
+                if (containerWidth < 800) return 2
+                if (containerWidth < 1200) return 3
+                return 4
+            }}
+            spacing={(containerWidth) => {
+                if (containerWidth < 400) return 5
+                if (containerWidth < 800) return 5
+                if (containerWidth < 1200) return 10
+                return 15
+            }}
+            onClick={({ index }) => setIndex(index)} />
         <Lightbox
             slides={photos}
             open={index >= 0}
