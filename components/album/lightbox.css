@@ -1,0 +1,19 @@
+.yarl__slide {
+    flex-direction: column;
+}
+
+.yarl__slide_wrapper {
+}
+
+.yarl__slide > .image_description {
+    color: white;
+    margin-top: 5px;
+    flex-shrink: 0;
+    flex-basis: fit-content;
+}
+
+.yarl__slide > .image_description > .labels:before,
+.yarl__slide > .image_description > .exif:before {
+    content: '\2237';
+    padding: 0 0.5em;
+}

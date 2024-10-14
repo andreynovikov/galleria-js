@@ -16,3 +16,25 @@ CREATE TABLE image (
     exportable boolean DEFAULT true NOT NULL,
     censored integer DEFAULT 0 NOT NULL
 );
+
+CREATE TABLE label (
+    id SERIAL PRIMARY KEY,
+    name character varying NOT NULL
+);
+
+CREATE TABLE label_image (
+    image integer NOT NULL,
+    label integer NOT NULL
+);
+
+CREATE INDEX image_bundle ON image USING btree (bundle);
+
+CREATE UNIQUE INDEX label_name ON label USING btree (name);
+
+CREATE UNIQUE INDEX label_image_label_image ON label_image USING btree (label, image);
+
+ALTER TABLE ONLY label_image
+    ADD CONSTRAINT label_image_image_fkey FOREIGN KEY (image) REFERENCES image(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY label_image
+    ADD CONSTRAINT label_image_label_fkey FOREIGN KEY (label) REFERENCES label(id) ON DELETE RESTRICT;

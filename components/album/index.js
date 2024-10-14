@@ -9,8 +9,11 @@ import Download from 'yet-another-react-lightbox/plugins/download'
 import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen'
 import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 
-import 'yet-another-react-lightbox/styles.css'
+import ImageDescription from '@/components/image/desctiption'
+
 import 'react-photo-album/masonry.css'
+import 'yet-another-react-lightbox/styles.css'
+import './lightbox.css'
 
 export default function Album(props) {
     const { photos } = props
@@ -83,13 +86,7 @@ export default function Album(props) {
             render={{
                 buttonPrev: photos.length <= 1 ? () => null : undefined,
                 buttonNext: photos.length <= 1 ? () => null : undefined,
-                /*
-                slideFooter: () => (
-                    <div style={{ position: "absolute", color: "white", bottom: 16, left: 16 }}>
-                        Custom slide element
-                    </div>
-                )
-                */
+                slideFooter: ({slide}) => <ImageDescription id={slide.id} className="image_description" />
             }}
         />
     </>

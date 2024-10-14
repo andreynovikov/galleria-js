@@ -18,6 +18,7 @@
         "react-dom": "^18.3.1",
         "react-photo-album": "^3.0.2",
         "sharp": "^0.33.5",
+        "utf8": "^3.0.0",
         "yet-another-react-lightbox": "^3.21.6"
     }
 }
