@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 
 import { getImage } from '@/lib/actions'
 
@@ -36,14 +36,14 @@ export default function ImageDescription({ id, ...props }) {
     return <div {...props}>
         {image?.id ? (
             <>
-                <span className="name">{image.name}</span>
+                <span className="name">{image.name} {image.stime}</span>
                 {image.labels.length > 0 && (
                     <span className="labels">
                         {image.labels.map((label, index) => (
-                            <>
+                            <Fragment key={label.id}>
                                 {index > 0 && ', '}
                                 <a href={`/?-filt.labels=${label.id}`} key={label.id}>{label.name}</a>
-                            </>
+                            </Fragment>
                         ))}
                     </span>
                 )}
