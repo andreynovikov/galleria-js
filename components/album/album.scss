@@ -1,0 +1,26 @@
+.react-photo-album {
+    margin: 15px;
+
+    @media (max-width: 1200px) {
+        & {
+            margin: 10px;
+        }
+    }
+
+    @media (max-width: 800px) {
+        & {
+            margin: 5px;
+        }
+    }
+
+    .react-photo-album--image {
+        opacity: 0;
+        transform: scale(0.9);
+    
+        &.lazyloaded {
+            opacity: 1;
+            transform: scale(1);
+            transition: all 500ms;
+        }
+    }
+}

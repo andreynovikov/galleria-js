@@ -1,0 +1,20 @@
+.yarl__slide {
+    flex-direction: column;
+
+    .image_description {
+        color: white;
+        margin-top: 7px;
+        flex-shrink: 0;
+        flex-basis: fit-content;
+
+        a {
+            color: white;
+        }
+
+        @media (max-width: 800px) {
+            & {
+                font-size: small;
+            }
+        }
+    }
+}
