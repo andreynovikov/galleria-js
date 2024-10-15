@@ -36,7 +36,7 @@ export default function ImageDescription({ id, ...props }) {
     return <div {...props}>
         {image?.id ? (
             <>
-                <span className="name">{image.name} {image.stime}</span>
+                <span className="name">{image.name}</span>
                 {image.labels.length > 0 && (
                     <span className="labels">
                         {image.labels.map((label, index) => (
