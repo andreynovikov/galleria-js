@@ -27,6 +27,13 @@ CREATE TABLE label_image (
     label integer NOT NULL
 );
 
+CREATE TABLE log (
+    image integer NOT NULL,
+    "user" character varying(60) NOT NULL,
+    status integer NOT NULL,
+    ctime timestamp without time zone DEFAULT now()
+);
+
 CREATE INDEX image_bundle ON image USING btree (bundle);
 
 CREATE UNIQUE INDEX label_name ON label USING btree (name);
@@ -38,3 +45,6 @@ ALTER TABLE ONLY label_image
 
 ALTER TABLE ONLY label_image
     ADD CONSTRAINT label_image_label_fkey FOREIGN KEY (label) REFERENCES label(id) ON DELETE RESTRICT;
+
+ALTER TABLE ONLY log
+    ADD CONSTRAINT log_image_fkey FOREIGN KEY (image) REFERENCES image(id) ON DELETE CASCADE;

@@ -1,4 +1,6 @@
+import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 
 import Album from '@/components/album'
 import NothingFound from './nothing-found'
@@ -7,7 +9,12 @@ import { thumbnailWidths } from '@/lib/image'
 import { getImages, syncBundle } from '@/lib/images'
 import { bool } from '@/lib/utils'
 
+import styles from './gallery.module.scss'
+
 export default async function Gallery({bundle, searchParams}) {
+    const header = headers()
+    const ip = (header.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
+
     let labels = searchParams['-filt.labels']
     if (labels !== undefined)
         labels = labels.split(',').filter(l => +l > 0)
@@ -60,6 +67,11 @@ export default async function Gallery({bundle, searchParams}) {
     ))
 
     return (
-        <Album photos={photos} />
+        <>
+        <div className={styles.topMenu}>
+            <Link href="/">Все альбомы</Link>
+        </div>
+        <Album photos={photos} user={ip} />
+        </>
     )
 }

@@ -3,6 +3,8 @@ import { stat } from 'fs/promises'
 import { join } from 'path'
 
 import Image from '@/lib/image'
+import { writeLog } from '@/lib/db'
+import { ACTION_ORIGINAL, ACTION_VIEW, ACTION_EXPORT } from '@/lib/utils'
 
 const screenMaxWidth = Number(process.env.SCREEN_MAX_WIDTH)
 const exportMaxWidth = Number(process.env.EXPORT_MAX_WIDTH)
@@ -24,6 +26,7 @@ function streamFile(path) {
 }
 
 export async function GET(request, { params }) {
+    const ip = (request.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
     const format = request.nextUrl.searchParams.get('format')
     const ratio = +request.nextUrl.searchParams.get('ratio') || 1.0
     const thumbnailSize = request.nextUrl.searchParams.get('size') || 'm'
@@ -56,7 +59,9 @@ export async function GET(request, { params }) {
                 })
             }
         }
+        await image.fetchData()
         if (format === 'original') {
+            await writeLog(image.id, ACTION_ORIGINAL, ip)
             stream = streamFile(path)
         } else {
             await image.fetchData()
@@ -65,9 +70,9 @@ export async function GET(request, { params }) {
         
             if (format === 'export') {
                 width = exportMaxWidth
-                // log(image.id, db.LOG_STATUS_EXPORT)
+                await writeLog(image.id, ACTION_EXPORT, ip)
             } else {
-                // log(image.id, db.LOG_STATUS_VIEW)
+                await writeLog(image.id, ACTION_VIEW, ip)
             }
 
             if (ratio < 1)
