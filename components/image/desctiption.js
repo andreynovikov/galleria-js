@@ -1,9 +1,11 @@
 import { useState, useEffect, Fragment } from 'react'
 
+import PulseLoader from 'react-spinners/PulseLoader'
+
 import { getImage } from '@/lib/actions'
 
 function Loading() {
-    return <>Loading...</>
+    return <PulseLoader color="white" size={10} />
 }
 
 export default function ImageDescription({ id, ...props }) {
@@ -36,7 +38,6 @@ export default function ImageDescription({ id, ...props }) {
     return <div {...props}>
         {image?.id ? (
             <>
-                <span className="name">{image.name}</span>
                 {image.labels.length > 0 && (
                     <span className="labels">
                         {image.labels.map((label, index) => (
@@ -47,6 +48,7 @@ export default function ImageDescription({ id, ...props }) {
                         ))}
                     </span>
                 )}
+                {image.labels.length > 0 && exif.length > 0 && ' ∷ '}
                 {exif.length > 0 && <span className="exif">{exif.join(', ')}</span>}
             </>
         ) : (

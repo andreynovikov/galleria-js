@@ -17,9 +17,14 @@
         "postgres": "^3.4.4",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
+        "react-lazy-load-image-component": "^1.6.2",
         "react-photo-album": "^3.0.2",
+        "react-spinners": "^0.14.1",
         "sharp": "^0.33.5",
         "utf8": "^3.0.0",
         "yet-another-react-lightbox": "^3.21.6"
+    },
+    "devDependencies": {
+        "sass": "^1.79.5"
     }
 }
