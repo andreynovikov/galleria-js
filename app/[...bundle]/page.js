@@ -1,45 +1,10 @@
 import { notFound } from 'next/navigation'
 
-import { thumbnailWidths } from '@/lib/image'
-import { getImages, syncBundle } from '@/lib/images'
-import Album from '@/components/album'
+import Gallery from '@/components/gallery'
 
 export default async function PhotosList({ params, searchParams }) {
     if (params.bundle.at(-1) === 'thumbs')
         notFound()
 
-    const bundle = '/' + params.bundle.join('/')
-    const order = searchParams['-nav.order'] || 'stime'
-
-    let images = []
-    try {
-        images = await syncBundle(bundle)
-        images = await getImages({ bundle }, order)
-    } catch (e) {
-        if (e?.code === 'ENOENT') {
-            notFound()
-        }
-    }
-
-    const photos = images.map((image) => (
-        {
-            id: image.id,
-            src: `${image.bundle}/${image.name}`,
-            download: `${image.bundle}/${image.name}?format=original`,
-            title: image.name,
-            width: image.width,
-            height: image.height,
-            srcSet: Object.entries(thumbnailWidths).map(([size, width]) => ({
-                src: `${image.bundle}/${image.name}?format=thumbnail&size=${size}`,
-                width,
-                height: Math.round((image.height / image.width) * width)
-            })).concat([{
-                src: `${image.bundle}/${image.name}`,
-                width: Number(process.env.SCREEN_MAX_WIDTH),
-                height: Math.round((image.height / image.width) * Number(process.env.SCREEN_MAX_WIDTH))
-            }])
-        }
-    ))
-
-    return <Album photos={photos} />
+    return <Gallery bundle={'/' + params.bundle.join('/')} searchParams={searchParams} />
 }
