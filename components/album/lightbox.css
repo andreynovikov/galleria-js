@@ -7,7 +7,7 @@
 
 .yarl__slide > .image_description {
     color: white;
-    margin-top: 5px;
+    margin-top: 7px;
     flex-shrink: 0;
     flex-basis: fit-content;
 }

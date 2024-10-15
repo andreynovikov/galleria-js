@@ -13,6 +13,7 @@ import ImageDescription from '@/components/image/desctiption'
 
 import 'react-photo-album/masonry.css'
 import 'yet-another-react-lightbox/styles.css'
+import './album.css'
 import './lightbox.css'
 
 export default function Album(props) {

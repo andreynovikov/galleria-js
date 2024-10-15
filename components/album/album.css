@@ -1,0 +1,15 @@
+.react-photo-album {
+    margin: 15px;
+}
+
+@media (max-width: 1200px) {
+    .react-photo-album {
+        margin: 10px;
+    }
+}
+
+@media (max-width: 800px) {
+    .react-photo-album {
+        margin: 5px;
+    }
+}
