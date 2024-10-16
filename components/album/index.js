@@ -51,7 +51,6 @@ function Album(props) {
     const handleImageLoad = async (e, photo) => {
         await log(photo.id, ACTION_THUMBNAIL, user)
         e.target.classList.add('lazyloaded')
-        console.log(photo)
     }
 
     return <>
