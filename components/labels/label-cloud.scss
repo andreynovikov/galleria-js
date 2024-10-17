@@ -1,3 +1,43 @@
 .tag-cloud-tag {
     cursor: pointer;
+    margin: 0px 3px;
+    vertical-align: middle;
+    display: inline-block;
+
+    &.selected {
+        font-size: 26px !important;
+        text-decoration: wavy underline;
+    }
+
+    &.excluded {
+        font-size: 26px !important;
+        text-decoration: wavy line-through;
+        color: #8B0000 !important;
+    }
+
+    &.related {
+        color: #006400 !important;
+    }
+}
+
+.labels {
+    button {
+        margin-top: 10px;
+        background-color: #fff;
+        border: 1px solid #ccc;
+        border-radius: .5rem;
+        color: #111827;
+        padding: .5rem 1rem;
+        text-align: center;
+        font-weight: bolder;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+
+        &:hover {
+            background-color: rgb(249, 250, 251);
+        }
+
+        &:active {
+            transform: scale(0.95);
+        }
+    }
 }
