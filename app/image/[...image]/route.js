@@ -26,7 +26,7 @@ function streamFile(path) {
 }
 
 export async function GET(request, { params }) {
-    const ip = (request.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
+    const ip = (request.headers.get('x-real-ip') ?? request.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
     const format = request.nextUrl.searchParams.get('format')
     const ratio = +request.nextUrl.searchParams.get('ratio') || 1.0
     const thumbnailSize = request.nextUrl.searchParams.get('size') || 'm'
