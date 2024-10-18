@@ -3,6 +3,11 @@ import Link from 'next/link'
 
 import styles from './list.module.scss'
 
+/*
+https://ru.stackoverflow.com/questions/1529963/
+https://stackoverflow.com/questions/71436457/
+*/
+
 export default async function BundleList() {
     const bundles = await listBundles()
 

@@ -2,4 +2,21 @@
     list-style: none;
     margin: 0;
     padding: 0;
+    column-count: 4;
+
+    @media (max-width: 1200px) {
+        & {
+            column-count: 3;
+        }
+    }
+    @media (max-width: 800px) {
+        & {
+            column-count: 2;
+        }
+    }
+    @media (max-width: 400px) {
+        & {
+            column-count: 1;
+        }
+    }
 }
