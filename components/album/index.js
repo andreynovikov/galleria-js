@@ -24,6 +24,15 @@ import './lightbox.scss'
 import { log } from '@/lib/actions'
 import { ACTION_ZOOM, ACTION_THUMBNAIL, ACTION_INFO } from '@/lib/utils'
 
+function scrollTo(id) {
+    setTimeout(() => { // for some reason album is not ready on first render
+        const thumbnail = document.getElementById('thumbnail-' + id)
+        console.log(thumbnail)
+        if (thumbnail)
+            thumbnail.scrollIntoView({ behavior: 'instant', block: 'center' })
+    }, 100)
+}
+
 function Album(props) {
     const { photos, user, scrollPosition } = props
 
@@ -34,18 +43,11 @@ function Album(props) {
     const searchParams = useSearchParams()
 
     useEffect(() => {
-        let scrollTo = searchParams.get('opener')
-        if (scrollTo === undefined && window.location.hash.startsWith('#view-')) {
+        if (window.location.hash.startsWith('#view-')) {
             const hs = window.location.hash.split('-')
             setIndex(hs[1])
-            const scrollTo = hs[2]
+            scrollTo(hs[2])
         }
-        if (scrollTo !== undefined)
-            setTimeout(() => { // for some reason album is not ready on first render
-                const thumbnail = document.getElementById('thumbnail-' + scrollTo)
-                if (thumbnail)
-                    thumbnail.scrollIntoView({ behavior: 'instant', block: 'center' })
-            }, 100)
 
         window.addEventListener('popstate', handleBackEvent)
         return () => window.removeEventListener('popstate', handleBackEvent)
@@ -54,8 +56,13 @@ function Album(props) {
     useEffect(() => {
         const url = `${pathname}?${searchParams}`
         if (urlRef.current !== url) { // effect is fired even when url only hash of url is changed
+            console.log(url)
             setIndex(-1)
             urlRef.current = url
+            const id = searchParams.get('opener')
+            console.log(id)
+            if (id !== undefined)
+                scrollTo(id)
         }
     }, [pathname, searchParams])
 
