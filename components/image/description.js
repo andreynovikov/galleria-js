@@ -1,4 +1,5 @@
 import { useState, useEffect, Fragment } from 'react'
+import Link from 'next/link'
 
 import PulseLoader from 'react-spinners/PulseLoader'
 
@@ -43,7 +44,7 @@ export default function ImageDescription({ id, ...props }) {
                         {image.labels.map((label, index) => (
                             <Fragment key={label.id}>
                                 {index > 0 && ', '}
-                                <a href={`/?-filt.labels=${label.id}`} key={label.id}>{label.name}</a>
+                                <Link href={`/?-filt.labels=${label.id}&opener=${image.id}`} key={label.id}>{label.name}</Link>
                             </Fragment>
                         ))}
                     </span>
