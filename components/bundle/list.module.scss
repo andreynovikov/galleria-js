@@ -2,8 +2,13 @@
     list-style: none;
     margin: 0;
     padding: 0;
-    column-count: 4;
+    column-count: 5;
 
+    @media (max-width: 1400px) {
+        & {
+            column-count: 4;
+        }
+    }
     @media (max-width: 1200px) {
         & {
             column-count: 3;
@@ -14,7 +19,7 @@
             column-count: 2;
         }
     }
-    @media (max-width: 400px) {
+    @media (max-width: 600px) {
         & {
             column-count: 1;
         }
