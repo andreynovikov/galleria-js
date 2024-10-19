@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 import { MasonryPhotoAlbum } from 'react-photo-album'
 import Lightbox from 'yet-another-react-lightbox'
@@ -13,7 +14,7 @@ import { LazyLoadImage, trackWindowScroll } from 'react-lazy-load-image-componen
 
 import GridLoader from 'react-spinners/GridLoader'
 
-import ImageDescription from '@/components/image/desctiption'
+import ImageDescription from '@/components/image/description'
 
 import 'react-photo-album/masonry.css'
 import 'yet-another-react-lightbox/styles.css'
@@ -28,20 +29,35 @@ function Album(props) {
 
     const [index, setIndex] = useState(-1)
 
+    const urlRef = useRef()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+
     useEffect(() => {
-        if (window.location.hash.startsWith('#view-')) {
+        let scrollTo = searchParams.get('opener')
+        if (scrollTo === undefined && window.location.hash.startsWith('#view-')) {
             const hs = window.location.hash.split('-')
             setIndex(hs[1])
             const scrollTo = hs[2]
+        }
+        if (scrollTo !== undefined)
             setTimeout(() => { // for some reason album is not ready on first render
                 const thumbnail = document.getElementById('thumbnail-' + scrollTo)
                 if (thumbnail)
                     thumbnail.scrollIntoView({ behavior: 'instant', block: 'center' })
             }, 100)
-        }
+
         window.addEventListener('popstate', handleBackEvent)
         return () => window.removeEventListener('popstate', handleBackEvent)
     }, [])
+
+    useEffect(() => {
+        const url = `${pathname}?${searchParams}`
+        if (urlRef.current !== url) { // effect is fired even when url only hash of url is changed
+            setIndex(-1)
+            urlRef.current = url
+        }
+    }, [pathname, searchParams])
 
     const handleBackEvent = (event) => {
         if (event.state)
@@ -71,10 +87,14 @@ function Album(props) {
             }}
             onClick={({ index }) => setIndex(index)}
             render={{
+                button: (props, { photo }) => (
+                    <button
+                        {...props}
+                        id={`thumbnail-${photo.id}`} />
+                ),
                 image: (props, { photo }) => (
                     <LazyLoadImage
                         {...props}
-                        id={`thumbnail-${photo.id}`}
                         scrollPosition={scrollPosition}
                         threshold={0}
                         onLoad={(e) => handleImageLoad(e, photo)} />
