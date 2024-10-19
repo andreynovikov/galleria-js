@@ -21,7 +21,7 @@ import './album.scss'
 import './lightbox.scss'
 
 import { log } from '@/lib/actions'
-import { ACTION_THUMBNAIL, ACTION_INFO } from '@/lib/utils'
+import { ACTION_ZOOM, ACTION_THUMBNAIL, ACTION_INFO } from '@/lib/utils'
 
 function Album(props) {
     const { photos, user, scrollPosition } = props
@@ -49,8 +49,8 @@ function Album(props) {
     }
 
     const handleImageLoad = async (e, photo) => {
-        await log(photo.id, ACTION_THUMBNAIL, user)
         e.target.classList.add('lazyloaded')
+        log(photo.id, ACTION_THUMBNAIL, user)
     }
 
     return <>
@@ -98,6 +98,10 @@ function Album(props) {
                     else
                         window.history.pushState({ view: photos[currentIndex].id }, '', location)
                     await log(photos[currentIndex].id, ACTION_INFO, user)
+                },
+                zoom: async ({ zoom }) => {
+                    console.log('zoom')
+                    log(photos[index].id, ACTION_ZOOM, user)
                 }
             }}
             carousel={{
