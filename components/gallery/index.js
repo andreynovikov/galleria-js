@@ -12,7 +12,7 @@ import { bool } from '@/lib/utils'
 import styles from './gallery.module.scss'
 
 export default async function Gallery({bundle, searchParams}) {
-    let basePath = process.env.BASE_PATH ?? ''
+    const basePath = process.env.BASE_PATH ?? ''
     const header = headers()
     const ip = (header.get('x-real-ip') ?? header.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
 
