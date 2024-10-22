@@ -79,17 +79,17 @@ function Album(props) {
     return <>
         <MasonryPhotoAlbum
             photos={photos}
-            breakpoints={[400, 800, 1200]}
+            breakpoints={[451, 801, 1201, 1801]}
             columns={(containerWidth) => {
-                if (containerWidth < 400) return 1
-                if (containerWidth < 800) return 2
-                if (containerWidth < 1200) return 3
+                if (containerWidth < 451) return 1
+                if (containerWidth < 801) return 2
+                if (containerWidth < 1201) return 3
+                if (containerWidth < 1801) return 4
                 return 5
             }}
             spacing={(containerWidth) => {
-                if (containerWidth < 400) return 5
-                if (containerWidth < 800) return 5
-                if (containerWidth < 1200) return 10
+                if (containerWidth < 801) return 5
+                if (containerWidth < 1201) return 10
                 return 15
             }}
             onClick={({ index }) => setIndex(index)}
