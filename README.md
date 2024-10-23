@@ -23,4 +23,4 @@ Last two examples are useful for blogging – photos can be inserted in text as 
 ## Requirements
 
 * Node.js
-* PostgreSql
+* PostgreSQL
