@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 import { getLogUsers } from '@/lib/db'
 
-export default async function History(params) {
+export default async function History() {
     const users = await getLogUsers()
 
     const days = users.reduce((days, user) => {
@@ -11,7 +11,7 @@ export default async function History(params) {
             id: user.id,
             count: user.count
         }
-        if (last?.day !== user.day) {
+        if (last?.day.getTime() !== user.day.getTime()) {
             days.push({
                 day: user.day,
                 users: [entry]
@@ -23,13 +23,13 @@ export default async function History(params) {
     }, [])
 
     return days.map(day => (
-        <>
+        <div style={{ marginBottom: '5px' }} key={day.day}>
             <div style={{ fontWeight: "bold" }}>
                 {day.day.toISOString().split('T')[0]}
             </div>
-            <div style={{ marginBottom: '5px' }}>
+            <div>
                 {day.users.map(user => (
-                    <div>
+                    <div key={user.id}>
                         <Link href={`/history/${user.id}/${day.day.toISOString().split('T')[0]}`}>
                             {user.id}
                         </Link>
@@ -38,6 +38,6 @@ export default async function History(params) {
                     </div>
                 ))}
             </div>
-        </>
+        </div>
     ))
 }
