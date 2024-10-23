@@ -56,7 +56,7 @@ function Album(props) {
 
     useEffect(() => {
         const url = `${pathname}?${searchParams}`
-        if (urlRef.current !== url) { // effect is fired even when url only hash of url is changed
+        if (urlRef.current !== url) { // effect is fired even when only hash of url is changed
             setIndex(-1)
             urlRef.current = url
             const id = searchParams.get('opener')

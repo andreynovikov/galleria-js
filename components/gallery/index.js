@@ -11,8 +11,9 @@ import { bool } from '@/lib/utils'
 
 import styles from './gallery.module.scss'
 
+const basePath = process.env.BASE_PATH ?? ''
+
 export default async function Gallery({bundle, searchParams}) {
-    const basePath = process.env.BASE_PATH ?? ''
     const header = headers()
     const ip = (header.get('x-real-ip') ?? header.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
 
