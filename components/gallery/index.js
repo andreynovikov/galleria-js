@@ -28,10 +28,13 @@ export default async function Gallery({bundle, searchParams}) {
     let till = searchParams['-filt.till']
     if (till !== undefined)
         till = new Date(till) || undefined
+    let censored = searchParams['-filt.censored']
+    if (censored !== undefined)
+	censored = +censored
 
     const order = searchParams['-nav.order'] || 'stime'
 
-    if (bundle && !!!labels && !!!notlabels) {
+    if (bundle && labels === undefined && notlabels === undefined && censored === undefined) {
         try {
             const shouldUpdateMetadata = bool(searchParams['updatemetadata'])
             await syncBundle(bundle, shouldUpdateMetadata)
@@ -42,7 +45,7 @@ export default async function Gallery({bundle, searchParams}) {
         }
     }
 
-    const images = await getImages({ bundle, labels, notlabels, from, till }, order)
+    const images = await getImages({ bundle, labels, notlabels, from, till, censored }, order)
 
     if (images.length === 0)
         return <NothingFound />
@@ -60,7 +63,7 @@ export default async function Gallery({bundle, searchParams}) {
                 width,
                 height: Math.round((image.height / image.width) * width)
             })).concat([{
-                src: `${basePath}${image.bundle}/${image.name}`,
+                src: `${basePath}${image.bundle}/${image.name}?format=thumbnail&size=l`,
                 width: Number(process.env.SCREEN_MAX_WIDTH),
                 height: Math.round((image.height / image.width) * Number(process.env.SCREEN_MAX_WIDTH))
             }])
