@@ -1,0 +1,40 @@
+.history {
+    a {
+        &:visited {
+            color: #7a0f9b;
+        }
+    }
+
+    .images {
+        display: flex;
+        flex-wrap: wrap;
+
+        a {
+            display: flex;
+        }
+
+        img {
+            height: 80px;
+            margin: 2px;
+            border-width: 3px;
+            border-style: solid;
+            border-color: #ccc;
+
+            &.status0 {
+                border-color: #faa;
+            }
+            &.status1 {
+                border-color: #b66;
+            }
+            &.status2 {
+                border-color: #afa;
+            }
+            &.status4 {
+                border-color: #6a6;
+            }
+            &.status5 {
+                border-color: #aaf;
+            }
+        }
+    }
+}
