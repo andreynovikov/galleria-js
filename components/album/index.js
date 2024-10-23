@@ -27,7 +27,6 @@ import { ACTION_ZOOM, ACTION_THUMBNAIL, ACTION_INFO } from '@/lib/utils'
 function scrollTo(id) {
     setTimeout(() => { // for some reason album is not ready on first render
         const thumbnail = document.getElementById('thumbnail-' + id)
-        console.log(thumbnail)
         if (thumbnail)
             thumbnail.scrollIntoView({ behavior: 'instant', block: 'center' })
     }, 100)
@@ -56,11 +55,9 @@ function Album(props) {
     useEffect(() => {
         const url = `${pathname}?${searchParams}`
         if (urlRef.current !== url) { // effect is fired even when url only hash of url is changed
-            console.log(url)
             setIndex(-1)
             urlRef.current = url
             const id = searchParams.get('opener')
-            console.log(id)
             if (id !== undefined)
                 scrollTo(id)
         }
@@ -76,9 +73,17 @@ function Album(props) {
         log(photo.id, ACTION_THUMBNAIL, user)
     }
 
+    const thumbnails = photos.map(image => (
+        {
+            ...image,
+            src: image.srcSet.at(-2).src,
+            srcSet: image.srcSet.slice(0, -1)
+        }
+    ))
+
     return <>
         <MasonryPhotoAlbum
-            photos={photos}
+            photos={thumbnails}
             breakpoints={[451, 801, 1201, 1801]}
             columns={(containerWidth) => {
                 if (containerWidth < 451) return 1
