@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 
 import { MasonryPhotoAlbum } from 'react-photo-album'
@@ -15,6 +15,8 @@ import { LazyLoadImage, trackWindowScroll } from 'react-lazy-load-image-componen
 import GridLoader from 'react-spinners/GridLoader'
 
 import ImageDescription from '@/components/image/description'
+
+import debounce from 'lodash.debounce'
 
 import 'react-photo-album/masonry.css'
 import 'yet-another-react-lightbox/styles.css'
@@ -62,6 +64,12 @@ function Album(props) {
                 scrollTo(id)
         }
     }, [pathname, searchParams])
+
+    const handleZoom = () => {
+        log(photos[index].id, ACTION_ZOOM, user)
+    }
+
+    const handleDebouncedZoom = useCallback(debounce(handleZoom, 500), [photos, index])
 
     const handleBackEvent = (event) => {
         if (event.state)
@@ -132,8 +140,7 @@ function Album(props) {
                     await log(photos[currentIndex].id, ACTION_INFO, user)
                 },
                 zoom: async ({ zoom }) => {
-                    console.log('zoom')
-                    log(photos[index].id, ACTION_ZOOM, user)
+                    handleDebouncedZoom()
                 }
             }}
             carousel={{
