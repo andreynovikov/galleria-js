@@ -1,10 +1,12 @@
 {
     "name": "galleria",
-    "version": "0.2.0",
+    "version": "0.9.0",
     "scripts": {
         "dev": "next dev",
         "build": "next build",
         "start": "next start",
+        "docker-build": "sudo docker compose build && sudo docker tag galleria galleria:$npm_package_version",
+        "docker-deploy": "sudo docker compose up -d",
         "lint": "next lint"
     },
     "author": "Andrey Novikov",
