@@ -64,7 +64,7 @@ export default async function Gallery({bundle, searchParams}) {
                 width,
                 height: Math.round((image.height / image.width) * width)
             })).concat([{
-                src: `${basePath}${image.bundle}/${image.name}?format=thumbnail&size=l`,
+                src: `${basePath}${image.bundle}/${image.name}`,
                 width: Number(process.env.SCREEN_MAX_WIDTH),
                 height: Math.round((image.height / image.width) * Number(process.env.SCREEN_MAX_WIDTH))
             }])
