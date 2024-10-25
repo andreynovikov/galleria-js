@@ -2,6 +2,8 @@ import { createReadStream } from 'fs'
 import { stat } from 'fs/promises'
 import { join } from 'path'
 
+import { auth } from 'auth'
+
 import Image from '@/lib/image'
 import { writeLog } from '@/lib/db'
 import { ACTION_ORIGINAL, ACTION_VIEW, ACTION_EXPORT } from '@/lib/utils'
@@ -26,7 +28,9 @@ function streamFile(path) {
 }
 
 export async function GET(request, { params }) {
-    const ip = (request.headers.get('x-real-ip') ?? request.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
+    const session = await auth()
+    const user = session?.user ?? {}
+    user.ip = (request.headers.get('x-real-ip') ?? request.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
     const format = request.nextUrl.searchParams.get('format')
     const ratio = +request.nextUrl.searchParams.get('ratio') || 1.0
     const thumbnailSize = request.nextUrl.searchParams.get('size') || 'm'
@@ -61,7 +65,7 @@ export async function GET(request, { params }) {
         }
         await image.fetchData()
         if (format === 'original') {
-            await writeLog(image.id, ACTION_ORIGINAL, ip)
+            await writeLog(image.id, ACTION_ORIGINAL, user)
             stream = streamFile(path)
         } else {
             await image.fetchData()
@@ -70,9 +74,9 @@ export async function GET(request, { params }) {
         
             if (format === 'export') {
                 width = exportMaxWidth
-                await writeLog(image.id, ACTION_EXPORT, ip)
+                await writeLog(image.id, ACTION_EXPORT, user)
             } else {
-                await writeLog(image.id, ACTION_VIEW, ip)
+                await writeLog(image.id, ACTION_VIEW, user)
             }
 
             if (ratio < 1)

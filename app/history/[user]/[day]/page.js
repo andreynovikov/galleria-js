@@ -1,8 +1,13 @@
 import { getUserLog } from '@/lib/db'
+import { auth } from '@/auth'
 
 const basePath = process.env.BASE_PATH ?? ''
 
 export default async function History({ params }) {
+    const session = await auth()
+    if (!session.user)
+        redirect('/api/auth/signin')
+
     const filters = {
         user: decodeURIComponent(params.user),
         day: decodeURIComponent(params.day)

@@ -8,14 +8,17 @@ import NothingFound from './nothing-found'
 import { thumbnailWidths } from '@/lib/image'
 import { getImages, syncBundle } from '@/lib/images'
 import { bool } from '@/lib/utils'
+import { auth } from '@/auth'
 
 import styles from './gallery.module.scss'
 
 const basePath = process.env.BASE_PATH ?? ''
 
-export default async function Gallery({bundle, searchParams}) {
+export default async function Gallery({ bundle, searchParams }) {
+    const session = await auth()
+    const user = session?.user ?? {}
     const header = headers()
-    const ip = (header.get('x-real-ip') ?? header.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
+    user.ip = (header.get('x-real-ip') ?? header.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
 
     let labels = searchParams['-filt.labels']
     if (labels !== undefined)
@@ -31,7 +34,7 @@ export default async function Gallery({bundle, searchParams}) {
         till = new Date(till) || undefined
     let censored = searchParams['-filt.censored']
     if (censored !== undefined)
-	censored = +censored
+        censored = +censored
 
     const order = searchParams['-nav.order'] || 'stime'
 
@@ -73,10 +76,10 @@ export default async function Gallery({bundle, searchParams}) {
 
     return (
         <>
-        <div className={styles.topMenu}>
-            <Link href="/">Все альбомы</Link>
-        </div>
-        <Album photos={photos} user={ip} />
+            <div className={styles.topMenu}>
+                <Link href="/">Все альбомы</Link>
+            </div>
+            <Album photos={photos} user={user} />
         </>
     )
 }
