@@ -18,8 +18,6 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     ],
     callbacks: {
         jwt({ token, account, user, profile }) {
-            console.log('user', user)
-            console.log('profile', profile)
             if (profile?.sub)
                 token.id = profile.sub // Google
             else if (profile?.id)
@@ -31,7 +29,6 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         session({ session, token }) {
             session.user.id = token.id?.toString()
             session.user.provider = token.provider
-            console.log('session', session)
             return session
         },
     },
