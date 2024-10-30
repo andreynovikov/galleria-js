@@ -1,18 +1,27 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
+import moment from 'moment'
+
 import { getLogUsers } from '@/lib/db'
 import { auth } from '@/auth'
+
+const adminIds = process.env.ADMIN_ID?.split(',') ?? []
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export default async function History() {
+export default async function History({ searchParams }) {
     const session = await auth()
-    if (!session.user)
+    if (!session.user || !adminIds.includes(session.user.id))
         redirect('/api/auth/signin')
 
-    const users = await getLogUsers()
+    const filters = {
+        from: moment(searchParams['-filt.from'] ?? moment().subtract(3, 'months')),
+        label: searchParams['-filt.label'],
+        status: searchParams['-filt.status']
+    }
+    const users = await getLogUsers(filters)
 
     const days = users.reduce((days, user) => {
         const last = days.at(-1)
@@ -20,9 +29,10 @@ export default async function History() {
             id: user.id,
             count: user.count
         }
-        if (last?.day.getTime() !== user.day.getTime()) {
+        const day = moment(user.day)
+        if (!day.isSame(last?.day, 'day')) {
             days.push({
-                day: user.day,
+                day,
                 users: [entry]
             })
         } else {
@@ -32,14 +42,17 @@ export default async function History() {
     }, [])
 
     return days.map(day => (
-        <div style={{ marginBottom: '5px' }} key={day.day}>
-            <div style={{ fontWeight: "bold" }}>
-                {day.day.toISOString().split('T')[0]}
+        <div className="users" key={day.day}>
+            <div className="date">
+                {day.day.format('LL')}
             </div>
             <div>
                 {day.users.map(user => (
                     <div key={user.id}>
-                        <Link href={`/history/${user.id}/${day.day.toISOString().split('T')[0]}`}>
+                        <Link href={{
+                            pathname: `/history/${user.id}/${day.day.format('YYYY-MM-DD')}`,
+                            query: searchParams
+                        }}>
                             {user.id}
                         </Link>
                         &nbsp;
