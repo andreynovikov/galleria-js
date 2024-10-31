@@ -1,6 +1,10 @@
 .yarl__slide {
     flex-direction: column;
 
+    .yarl__slide_wrapper {
+        min-height: 0;
+    }
+
     .image_description {
         color: white;
         margin-top: 7px;
