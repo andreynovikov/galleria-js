@@ -30,7 +30,7 @@ export default async function History({ searchParams }) {
             count: user.count
         }
         const day = moment(user.day)
-        if (!day.isSame(last?.day, 'day')) {
+        if (!last?.day.isSame(day, 'day')) {
             days.push({
                 day,
                 users: [entry]

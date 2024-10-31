@@ -24,7 +24,7 @@ export default async function UserHistory({ params, searchParams }) {
     const days = images.reduce((days, image) => {
         const last = days.at(-1)
         const day = moment(image.day ?? params.day)
-        if (!day.isSame(last?.day, 'day')) {
+        if (!last?.day.isSame(day, 'day')) {
             days.push({
                 day,
                 images: [image]
