@@ -16,8 +16,27 @@ export default function ImageDescription({ id, ...props }) {
         getImage(id).then(data => setImage(data))
     }, [])
 
-    const exif = []
-    if ('info' in image) {
+    const info = []
+
+    if (image?.description)
+        info.push({
+            key: 'title',
+            value: image.description
+        })
+
+    if (image?.labels?.length > 0)
+        info.push({
+            key: 'labels',
+            value: image.labels.map((label, index) => (
+                <Fragment key={label.id}>
+                    {index > 0 && ', '}
+                    <Link href={`/?-filt.labels=${label.id}&opener=${image.id}`} key={label.id}>{label.name}</Link>
+                </Fragment>
+            ))
+        })
+
+    if (image?.info) {
+        const exif = []
         if ('FocalLength' in image.info) {
             exif.push(image.info.FocalLength + 'mm')
         }
@@ -34,24 +53,23 @@ export default function ImageDescription({ id, ...props }) {
         if ('FNumber' in image.info) {
             exif.push('f/' + image.info.FNumber)
         }
+        if (exif.length > 0)
+            info.push({
+                key: 'exif',
+                value: exif.join(', ')
+            })
     }
 
     return <div {...props}>
         {image?.id ? (
-            <>
-                {image.labels.length > 0 && (
-                    <span className="labels">
-                        {image.labels.map((label, index) => (
-                            <Fragment key={label.id}>
-                                {index > 0 && ', '}
-                                <Link href={`/?-filt.labels=${label.id}&opener=${image.id}`} key={label.id}>{label.name}</Link>
-                            </Fragment>
-                        ))}
+            info.map((part, index) => (
+                <Fragment key={part.key}>
+                    {index > 0 && ' ∷ '}
+                    <span className={part.key}>
+                        {part.value}
                     </span>
-                )}
-                {image.labels.length > 0 && exif.length > 0 && ' ∷ '}
-                {exif.length > 0 && <span className="exif">{exif.join(', ')}</span>}
-            </>
+                </Fragment>
+            ))
         ) : (
             <Loading />
         )}
