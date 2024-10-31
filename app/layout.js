@@ -2,7 +2,7 @@ import { Nunito } from 'next/font/google'
 
 const nunito = Nunito({
     subsets: ['latin', 'cyrillic'],
-    display: 'swap',
+    display: 'block',
 })
 
 import 'modern-normalize/modern-normalize.css'
