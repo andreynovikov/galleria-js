@@ -5,8 +5,9 @@ import Link from 'next/link'
 import Album from '@/components/album'
 import NothingFound from './nothing-found'
 
+import { getLabelMaps, listImages } from 'lib/db'
 import { thumbnailWidths } from '@/lib/image'
-import { getImages, syncBundle } from '@/lib/images'
+import { syncBundle } from '@/lib/images'
 import { bool } from '@/lib/utils'
 import { auth } from '@/auth'
 
@@ -20,9 +21,16 @@ export default async function Gallery({ bundle, searchParams }) {
     const header = headers()
     user.ip = (header.get('x-real-ip') ?? header.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
 
+    const labelIds = await getLabelMaps()
+
     let labels = searchParams['-filt.labels']
-    if (labels !== undefined)
-        labels = labels.split(',').filter(l => +l > 0)
+    if (labels !== undefined) {
+        labels = labels.split(',').map(l => {
+            if (isNaN(l))
+                l = labelIds[l] ?? 0
+            return +l
+        }).filter(l => l > 0)
+    }
     let notlabels = searchParams['-filt.notlabels']
     if (notlabels !== undefined)
         notlabels = notlabels.split(',').filter(l => +l > 0)
@@ -49,7 +57,7 @@ export default async function Gallery({ bundle, searchParams }) {
         }
     }
 
-    const images = await getImages({ bundle, labels, notlabels, from, till, censored }, order)
+    const images = await listImages({ bundle, labels, notlabels, from, till, censored }, order)
 
     if (images.length === 0)
         return <NothingFound />
