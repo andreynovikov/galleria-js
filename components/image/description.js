@@ -14,7 +14,7 @@ export default function ImageDescription({ id, ...props }) {
 
     useEffect(() => {
         getImage(id).then(data => setImage(data))
-    }, [])
+    }, [id])
 
     const info = []
 
