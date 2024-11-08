@@ -2,11 +2,13 @@ import { createReadStream } from 'fs'
 import { stat } from 'fs/promises'
 import { join } from 'path'
 
+import { unstable_after as after } from 'next/server'
+
 import { auth } from 'auth'
 
 import Image from '@/lib/image'
 import { writeLog } from '@/lib/db'
-import { ACTION_ORIGINAL, ACTION_VIEW, ACTION_EXPORT } from '@/lib/utils'
+import { ACTION_ORIGINAL, ACTION_VIEW, ACTION_EXPORT, ACTION_THUMBNAIL } from '@/lib/utils'
 
 const screenMaxWidth = Number(process.env.SCREEN_MAX_WIDTH)
 const exportMaxWidth = Number(process.env.EXPORT_MAX_WIDTH)
@@ -27,7 +29,8 @@ function streamFile(path) {
     return ReadableStream.from(nodeStreamToIterator(nodeStream))
 }
 
-export async function GET(request, { params }) {
+export async function GET(request, segmentData) {
+    const params = await segmentData.params
     const session = await auth()
     const user = session?.user ?? {}
     user.ip = (request.headers.get('x-real-ip') ?? request.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
@@ -41,10 +44,12 @@ export async function GET(request, { params }) {
     let stream
     let size
     let type
+    let action
 
     if (format === 'thumbnail') {
         ({ type, size, path } = await image.makeThumbnail(thumbnailSize, force))
         stream = streamFile(path)
+        action = ACTION_THUMBNAIL
     } else {
         path = join(process.env.PHOTOS_FOLDER, request.nextUrl.pathname)
         try {
@@ -63,20 +68,19 @@ export async function GET(request, { params }) {
                 })
             }
         }
-        await image.fetchData()
         if (format === 'original') {
-            await writeLog(image.id, ACTION_ORIGINAL, user)
             stream = streamFile(path)
+            action = ACTION_ORIGINAL
         } else {
             await image.fetchData()
 
             let width = screenMaxWidth
-        
+
             if (format === 'export') {
                 width = exportMaxWidth
-                await writeLog(image.id, ACTION_EXPORT, user)
+                action = ACTION_EXPORT
             } else {
-                await writeLog(image.id, ACTION_VIEW, user)
+                action = ACTION_VIEW
             }
 
             if (ratio < 1)
@@ -93,6 +97,10 @@ export async function GET(request, { params }) {
             }
         }
     }
+
+    after(() => {
+        image.fetchData().then(() => writeLog(image.id, action, user))
+    })
 
     return new Response(stream, {
         status: 200,
