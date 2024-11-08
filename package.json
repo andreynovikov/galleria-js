@@ -31,6 +31,7 @@
         "react-spinners": "^0.14.1",
         "react-tagcloud": "^2.3.3",
         "sharp": "^0.33.5",
+        "ua-parser-js": "^2.0.0-rc.2",
         "utf8": "^3.0.0",
         "yet-another-react-lightbox": "^3.21.6"
     },

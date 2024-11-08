@@ -31,7 +31,8 @@ CREATE TABLE log (
     image integer NOT NULL,
     "user" character varying(60) NOT NULL,
     status integer NOT NULL,
-    ctime timestamp without time zone DEFAULT now()
+    ctime timestamp without time zone DEFAULT now(),
+    meta jsonb
 );
 
 CREATE INDEX image_bundle ON image USING btree (bundle);

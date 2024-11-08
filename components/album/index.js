@@ -35,7 +35,7 @@ function scrollTo(id) {
 }
 
 function Album(props) {
-    const { photos, user, scrollPosition } = props
+    const { photos, user, meta, scrollPosition } = props
 
     const [index, setIndex] = useState(-1)
 
@@ -65,12 +65,13 @@ function Album(props) {
         }
     }, [pathname, searchParams])
 
-    const handleZoom = () => {
-        log(photos[index].id, ACTION_ZOOM, user)
+    const handleZoom = (zoom) => {
+        console.log(zoom)
+        log(photos[index].id, ACTION_ZOOM, user, {zoom, ...meta})
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    const handleDebouncedZoom = useCallback(debounce(handleZoom, 500), [photos, index])
+    const handleDebouncedZoom = useCallback(debounce(handleZoom, 1000), [photos, index])
 
     const handleBackEvent = (event) => {
         if (event.state)
@@ -79,7 +80,7 @@ function Album(props) {
 
     const handleImageLoad = async (e, photo) => {
         e.target.classList.add('lazyloaded')
-        log(photo.id, ACTION_THUMBNAIL, user)
+        log(photo.id, ACTION_THUMBNAIL, user, meta)
     }
 
     const thumbnails = photos.map(image => (
@@ -138,10 +139,11 @@ function Album(props) {
                         window.history.replaceState({ view: photos[currentIndex].id }, '', location)
                     else
                         window.history.pushState({ view: photos[currentIndex].id }, '', location)
-                    await log(photos[currentIndex].id, ACTION_INFO, user)
+                    await log(photos[currentIndex].id, ACTION_INFO, user, meta)
                 },
                 zoom: async ({ zoom }) => {
-                    handleDebouncedZoom()
+                    if (zoom > 1.1)
+                        handleDebouncedZoom(zoom)
                 }
             }}
             carousel={{

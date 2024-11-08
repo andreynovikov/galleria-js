@@ -8,7 +8,7 @@ import NothingFound from './nothing-found'
 import { getLabelMaps, listImages } from 'lib/db'
 import { thumbnailWidths } from '@/lib/image'
 import { syncBundle } from '@/lib/images'
-import { bool } from '@/lib/utils'
+import { bool, uaMeta } from '@/lib/utils'
 import { auth } from '@/auth'
 
 import styles from './gallery.module.scss'
@@ -19,8 +19,8 @@ export default async function Gallery({ bundle, searchParams }) {
     const session = await auth()
     const user = session?.user ?? {}
     const header = await headers()
+    const meta = await uaMeta(header)
     user.ip = (header.get('x-real-ip') ?? header.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
-
     const labelIds = await getLabelMaps()
 
     let labels = searchParams['-filt.labels']
@@ -87,7 +87,7 @@ export default async function Gallery({ bundle, searchParams }) {
             <div className={styles.topMenu}>
                 <Link href="/">Все альбомы</Link>
             </div>
-            <Album photos={photos} user={user} />
+            <Album photos={photos} user={user} meta={JSON.parse(JSON.stringify(meta))} />
         </>
     )
 }

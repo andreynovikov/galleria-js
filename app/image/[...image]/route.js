@@ -8,7 +8,7 @@ import { auth } from 'auth'
 
 import Image from '@/lib/image'
 import { writeLog } from '@/lib/db'
-import { ACTION_ORIGINAL, ACTION_VIEW, ACTION_EXPORT, ACTION_THUMBNAIL } from '@/lib/utils'
+import { uaMeta, ACTION_ORIGINAL, ACTION_VIEW, ACTION_EXPORT, ACTION_THUMBNAIL } from '@/lib/utils'
 
 const screenMaxWidth = Number(process.env.SCREEN_MAX_WIDTH)
 const exportMaxWidth = Number(process.env.EXPORT_MAX_WIDTH)
@@ -99,7 +99,8 @@ export async function GET(request, segmentData) {
     }
 
     after(() => {
-        image.fetchData().then(() => writeLog(image.id, action, user))
+        const meta = uaMeta(request.headers)
+        image.fetchData().then(() => writeLog(image.id, action, user, meta))
     })
 
     return new Response(stream, {
