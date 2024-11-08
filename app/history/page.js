@@ -11,7 +11,8 @@ const adminIds = process.env.ADMIN_ID?.split(',') ?? []
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export default async function History({ searchParams }) {
+export default async function History(props) {
+    const searchParams = await props.searchParams
     const session = await auth()
     if (!session.user || !adminIds.includes(session.user.id))
         redirect('/api/auth/signin')

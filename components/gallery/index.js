@@ -18,7 +18,7 @@ const basePath = process.env.BASE_PATH ?? ''
 export default async function Gallery({ bundle, searchParams }) {
     const session = await auth()
     const user = session?.user ?? {}
-    const header = headers()
+    const header = await headers()
     user.ip = (header.get('x-real-ip') ?? header.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
 
     const labelIds = await getLabelMaps()

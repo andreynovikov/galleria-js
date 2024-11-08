@@ -39,7 +39,7 @@ function Album(props) {
 
     const [index, setIndex] = useState(-1)
 
-    const urlRef = useRef()
+    const urlRef = useRef(undefined)
     const pathname = usePathname()
     const searchParams = useSearchParams()
 
@@ -69,6 +69,7 @@ function Album(props) {
         log(photos[index].id, ACTION_ZOOM, user)
     }
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleDebouncedZoom = useCallback(debounce(handleZoom, 500), [photos, index])
 
     const handleBackEvent = (event) => {

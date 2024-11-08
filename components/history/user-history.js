@@ -7,7 +7,9 @@ import { auth } from '@/auth'
 const adminIds = process.env.ADMIN_ID?.split(',') ?? []
 const basePath = process.env.BASE_PATH ?? ''
 
-export default async function UserHistory({ params, searchParams }) {
+export default async function UserHistory(props) {
+    const params = await props.params
+    const searchParams = await props.searchParams
     const session = await auth()
     if (!session.user || !adminIds.includes(session.user.id))
         redirect('/api/auth/signin')
@@ -49,11 +51,13 @@ export default async function UserHistory({ params, searchParams }) {
                     <div className="images">
                         {day.images.map(image => (
                             <a href={`${basePath}${image.bundle}/${image.name}`} key={image.id}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                     loading="lazy"
                                     decoding="async"
                                     src={`${basePath}${image.bundle}/${image.name}?format=thumbnail&size=s`}
                                     className={`status${image.status}`}
+                                    alt={`${image.bundle}/${image.name}`}
                                     style={{ aspectRatio: image.width / image.height }} />
                             </a>
 
