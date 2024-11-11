@@ -63,7 +63,10 @@ export default async function History(props) {
                             {user.meta.map((meta, index) => (
                                 <Fragment key={index}>
                                     {index > 0 && ', '}
-                                    {meta.browser && `${meta.browser.name}/${meta.browser.major}`}
+                                    {meta.browser.name && <>
+                                        {`${meta.browser.name}`}
+                                        {meta.browser.major && meta.browser.type !== 'crawler' && `/${meta.browser.major}`}
+                                    </>}
                                     {meta.browser.type && ` (${meta.browser.type})`}
                                     {(meta.device.vendor || meta.device.type) && ' on '}
                                     {meta.device.vendor && `${meta.device.vendor} ${meta.device.model}`}
