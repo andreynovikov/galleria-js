@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
@@ -26,18 +27,17 @@ export default async function History(props) {
 
     const days = users.reduce((days, user) => {
         const last = days.at(-1)
-        const entry = {
-            id: user.id,
-            count: user.count
-        }
         const day = moment(user.day)
+        user.meta = user.meta.filter(meta => (
+            meta.browser && Object.keys(meta.browser).length > 0 || meta.device && Object.keys(meta.device).length > 0
+        ))
         if (!last?.day.isSame(day, 'day')) {
             days.push({
                 day,
-                users: [entry]
+                users: [user]
             })
         } else {
-            last.users.push(entry)
+            last.users.push(user)
         }
         return days
     }, [])
@@ -58,6 +58,19 @@ export default async function History(props) {
                         </Link>
                         &nbsp;
                         ({user.count})
+                        &nbsp;
+                        <span className="meta">
+                            {user.meta.map((meta, index) => (
+                                <Fragment key={index}>
+                                    {index > 0 && ', '}
+                                    {meta.browser && `${meta.browser.name}/${meta.browser.major}`}
+                                    {meta.browser.type && ` (${meta.browser.type})`}
+                                    {(meta.device.vendor || meta.device.type) && ' on '}
+                                    {meta.device.vendor && `${meta.device.vendor} ${meta.device.model}`}
+                                    {meta.device.type && ` (${meta.device.type})`}
+                                </Fragment>
+                            ))}
+                        </span>
                     </div>
                 ))}
             </div>
