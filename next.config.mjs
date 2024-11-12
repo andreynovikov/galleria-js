@@ -12,7 +12,7 @@ const regexEqual = (x, y) => {
     )
 }
 
-module.exports = {
+const nextConfig = {
     basePath: process.env.BASE_PATH,
     output: 'standalone',
     async headers() {
@@ -56,3 +56,5 @@ module.exports = {
         return config
     }
 }
+
+export default nextConfig
