@@ -29,7 +29,7 @@ CREATE TABLE label_image (
 
 CREATE TABLE log (
     image integer NOT NULL,
-    "user" character varying(60) NOT NULL,
+    visitor character varying(60) NOT NULL,
     status integer NOT NULL,
     ctime timestamp without time zone DEFAULT now(),
     meta jsonb
