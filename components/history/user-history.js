@@ -26,6 +26,12 @@ export default async function UserHistory(props) {
     const days = images.reduce((days, image) => {
         const last = days.at(-1)
         const day = moment(image.day ?? params.day)
+        image.meta = image.meta.reduce((meta, item) => {
+            if ('zoom' in item) {
+                meta.zoom = Math.max(item.zoom, meta.zoom ?? 1)
+            }
+            return meta
+        }, {})
         if (!last?.day.isSame(day, 'day')) {
             days.push({
                 day,
@@ -58,6 +64,7 @@ export default async function UserHistory(props) {
                                     src={`${basePath}${image.bundle}/${image.name}?format=thumbnail&size=s`}
                                     className={`status${image.status}`}
                                     alt={`${image.bundle}/${image.name}`}
+                                    title={image.meta.zoom}
                                     style={{ aspectRatio: image.width / image.height }} />
                             </a>
 
