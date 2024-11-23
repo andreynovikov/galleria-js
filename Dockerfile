@@ -24,7 +24,7 @@ ENV NODE_ENV production
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 COPY --from=builder --chown=node:node /app/.env.local ./
-COPY --from=builder --chown=node:node /app/next.config.js ./
+COPY --from=builder --chown=node:node /app/next.config.mjs ./
 COPY --from=builder --chown=node:node /app/startup.sh ./
 RUN mv ./server.js ./${entity}.js
 
