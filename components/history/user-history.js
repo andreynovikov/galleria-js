@@ -27,7 +27,7 @@ export default async function UserHistory(props) {
         const last = days.at(-1)
         const day = moment(image.day ?? params.day)
         image.meta = image.meta.reduce((meta, item) => {
-            if ('zoom' in item) {
+            if (item?.zoom) {
                 meta.zoom = Math.max(item.zoom, meta.zoom ?? 1)
             }
             return meta

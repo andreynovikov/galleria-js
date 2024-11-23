@@ -29,7 +29,7 @@ export default async function History(props) {
         const last = days.at(-1)
         const day = moment(user.day)
         user.meta = user.meta.filter(meta => (
-            meta.browser && Object.keys(meta.browser).length > 0 || meta.device && Object.keys(meta.device).length > 0
+            meta.browser || meta.ua || meta.device
         ))
         if (!last?.day.isSame(day, 'day')) {
             days.push({
@@ -63,10 +63,10 @@ export default async function History(props) {
                             {user.meta.map((meta, index) => (
                                 <Fragment key={index}>
                                     {index > 0 && ', '}
-                                    {meta.browser.name && <>
+                                    {meta.browser.name ? <>
                                         {`${meta.browser.name}`}
                                         {meta.browser.major && meta.browser.type !== 'crawler' && `/${meta.browser.major}`}
-                                    </>}
+                                    </> : meta.ua }
                                     {meta.browser.type && ` (${meta.browser.type})`}
                                     {(meta.device.vendor || meta.device.type) && ' on '}
                                     {meta.device.vendor && `${meta.device.vendor} ${meta.device.model}`}
