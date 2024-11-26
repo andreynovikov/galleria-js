@@ -31,14 +31,14 @@
         "react-spinners": "^0.14.1",
         "react-tagcloud": "^2.3.3",
         "sharp": "^0.33.5",
-        "ua-parser-js": "^2.0.0-rc.2",
+        "ua-parser-js": "^2.0.0",
         "utf8": "^3.0.0",
-        "yet-another-react-lightbox": "^3.21.6"
+        "yet-another-react-lightbox": "^3.21.7"
     },
     "devDependencies": {
-        "eslint": "^9.14.0",
+        "eslint": "^9.15.0",
         "eslint-config-next": "^15.0.3",
-        "sass": "^1.80.6",
+        "sass": "^1.81.0",
         "sass-loader": "^16.0.3"
     }
 }
