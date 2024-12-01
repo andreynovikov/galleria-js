@@ -11,7 +11,12 @@ import './globals.scss'
 export default function RootLayout({ children }) {
     return (
         <html lang="en" className={nunito.className}>
-            <body>{children}</body>
+            <body>
+                {children}
+                <footer>
+                    Powered by <a href="https://github.com/andreynovikov/galleria-js" target="_blank">galleria-js</a>
+                </footer>
+            </body>
         </html>
     )
 }
