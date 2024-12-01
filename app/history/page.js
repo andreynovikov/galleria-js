@@ -49,12 +49,12 @@ export default async function History(props) {
             </div>
             <div>
                 {day.users.map(user => (
-                    <div key={user.id}>
+                    <div key={user.visitor.id ?? user.visitor.ip}>
                         <Link href={{
-                            pathname: `/history/${user.id}/${day.day.format('YYYY-MM-DD')}`,
+                            pathname: `/history/${user.visitor.id ? user.visitor.id : 'ip/' + user.visitor.ip}/${day.day.format('YYYY-MM-DD')}`,
                             query: searchParams
                         }}>
-                            {user.id}
+                            {user.visitor.id ? user.visitor.name || user.visitor.email : user.visitor.ip}
                         </Link>
                         &nbsp;
                         ({user.count})

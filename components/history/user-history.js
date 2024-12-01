@@ -15,13 +15,15 @@ export default async function UserHistory(props) {
         redirect('/api/auth/signin')
 
     const filters = {
-        user: decodeURIComponent(params.user),
+        user: params.user && decodeURIComponent(params.user),
+        ip: params.ip && decodeURIComponent(params.ip),
         label: searchParams['-filt.label'],
         status: searchParams['-filt.status']
     }
     if (params.day)
         filters.day = decodeURIComponent(params.day)
     const images = await getUserLog(filters)
+    const visitor = images[0].visitor
 
     const days = images.reduce((days, image) => {
         const last = days.at(-1)
@@ -46,7 +48,10 @@ export default async function UserHistory(props) {
     return (
         <>
             <h1>
-                {filters.user}
+                {visitor.name || visitor.email || visitor.ip}
+                {visitor.id && Object.entries(visitor).map(([k, v]) => (
+                    <div className="visitor" key={k}>{k}: {v}</div>
+                ))}
             </h1>
             {days.map(day => (
                 <div key={day.day}>
