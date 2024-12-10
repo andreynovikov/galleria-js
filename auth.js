@@ -13,8 +13,28 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         GitHub,
         Google,
         MailRu,
-        Vk,
-        Yandex
+        Yandex,
+        {
+	    ...Vk({
+		checks: []
+	    }),
+	    token: {
+		url: 'https://oauth.vk.com/access_token?v=5.131',
+		conform: async (response) => {
+		    const data = await response.json()
+		    return new Response(
+			JSON.stringify({
+			    token_type: 'dpop',
+			    ...data,
+			}),
+			{
+			    headers: { "content-type": "application/json" },
+			    status: response.status
+			}
+		    )
+		}
+            }
+	}
     ],
     callbacks: {
         jwt({ token, account, user, profile }) {

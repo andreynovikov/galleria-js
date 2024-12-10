@@ -1,6 +1,6 @@
 {
     "name": "galleria",
-    "version": "0.9.3",
+    "version": "1.0.0",
     "scripts": {
         "dev": "next dev",
         "build": "next build",
@@ -36,7 +36,7 @@
         "yet-another-react-lightbox": "^3.21.7"
     },
     "devDependencies": {
-        "eslint": "^9.15.0",
+        "eslint": "^9.16.0",
         "eslint-config-next": "^15.0.4",
         "sass": "^1.81.0",
         "sass-loader": "^16.0.3"

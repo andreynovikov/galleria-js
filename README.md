@@ -7,6 +7,7 @@ Galleria is a responsive and mobile friendly web application designed for presen
 3. Photos can be filtered by many criteria (tags, authors, shooting dates), also across bundles
 4. Each bundle can contain hundreds of photos
 5. Friendly URLs for easy blogging
+6. Anonymous access can be restricted
 
 ## Examples
 
