@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation'
 
 import Gallery from '@/components/gallery'
 
+import { getTitle } from '@/lib/meta'
+
 export default async function PhotosList(props) {
     const params = await props.params
     const searchParams = await props.searchParams
@@ -9,4 +11,13 @@ export default async function PhotosList(props) {
         notFound()
 
     return <Gallery bundle={'/' + params.bundle.join('/')} searchParams={searchParams} />
+}
+
+export async function generateMetadata(props) {
+    const params = await props.params
+    const searchParams = await props.searchParams
+
+    return {
+        title: await getTitle(['Фотографии', 'из', params.bundle.join('/')], searchParams)
+    }
 }
