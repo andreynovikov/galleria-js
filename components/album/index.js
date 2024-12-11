@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { sendGAEvent } from '@next/third-parties/google'
 
 import { MasonryPhotoAlbum } from 'react-photo-album'
 import Lightbox from 'yet-another-react-lightbox'
@@ -66,8 +67,12 @@ function Album(props) {
     }, [pathname, searchParams])
 
     const handleZoom = (zoom) => {
-        console.log(zoom)
         log(photos[index].id, ACTION_ZOOM, user, {zoom, ...meta})
+        sendGAEvent('event', 'zoom', {
+            event_category: 'galleria',
+            event_label: photos[index].src,
+            value: zoom
+        })
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -140,10 +145,20 @@ function Album(props) {
                     else
                         window.history.pushState({ view: photos[currentIndex].id }, '', location)
                     await log(photos[currentIndex].id, ACTION_INFO, user, meta)
+                    sendGAEvent('event', 'view', {
+                        event_category: 'galleria',
+                        event_label: photos[currentIndex].src
+                    })
                 },
                 zoom: async ({ zoom }) => {
                     if (zoom > 1.1)
                         handleDebouncedZoom(zoom)
+                },
+                download: async ({ index: currentIndex }) => {
+                    sendGAEvent('event', 'download', {
+                        event_category: 'galleria',
+                        event_label: photos[currentIndex].src
+                    })
                 }
             }}
             carousel={{

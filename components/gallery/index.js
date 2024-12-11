@@ -11,6 +11,7 @@ import { syncBundle } from '@/lib/images'
 import { bool, uaMeta } from '@/lib/utils'
 import { auth } from '@/auth'
 
+import GaEvent from './ga-event'
 import styles from './gallery.module.scss'
 
 const basePath = process.env.BASE_PATH ?? ''
@@ -82,12 +83,25 @@ export default async function Gallery({ bundle, searchParams }) {
         }
     ))
 
+    const ShowEvent = () => {
+        if (!process.env.GOOGLE_ANALYTICS_ID)
+            return null
+
+        const params = Object.entries(searchParams).map(([key, value]) => (
+            [].concat(value).map(v => `${encodeURIComponent(key)}=${encodeURIComponent(v)}`
+        ))).flat().join('&')
+        const path = `${bundle ?? '/'}${params && '?'}${params}`
+    
+        return <GaEvent event="show" label={path} value={photos.length} />
+    }
+
     return (
         <>
             <div className={styles.topMenu}>
                 <Link href="/">Все альбомы</Link>
             </div>
             <Album photos={photos} user={user} meta={JSON.parse(JSON.stringify(meta))} />
+            <ShowEvent />
         </>
     )
 }

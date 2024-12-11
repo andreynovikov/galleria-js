@@ -1,3 +1,5 @@
+import { GoogleAnalytics } from '@next/third-parties/google'
+
 import { Nunito } from 'next/font/google'
 
 const nunito = Nunito({
@@ -17,6 +19,7 @@ export default function RootLayout({ children }) {
                     Powered by <a href="https://github.com/andreynovikov/galleria-js" target="_blank">galleria-js</a>
                 </footer>
             </body>
+            {process.env.GOOGLE_ANALYTICS_ID && <GoogleAnalytics gaId={process.env.GOOGLE_ANALYTICS_ID} />}
         </html>
     )
 }
