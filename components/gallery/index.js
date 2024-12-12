@@ -92,7 +92,7 @@ export default async function Gallery({ bundle, searchParams }) {
         ))).flat().join('&')
         const path = `${bundle ?? '/'}${params && '?'}${params}`
     
-        return <GaEvent event="show" label={path} value={photos.length} />
+        return <GaEvent event="list_photos" label={path} value={photos.length} />
     }
 
     return (

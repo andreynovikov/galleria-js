@@ -8,7 +8,6 @@ export default function GaEvent(props) {
 
     useEffect(() => {
         setTimeout(() => { // data layer is not yet initialized on first page load
-            console.log(event, label, value)
             sendGAEvent('event', event, {
                 event_category: 'galleria',
                 event_label: label,

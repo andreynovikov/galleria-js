@@ -68,7 +68,7 @@ function Album(props) {
 
     const handleZoom = (zoom) => {
         log(photos[index].id, ACTION_ZOOM, user, {zoom, ...meta})
-        sendGAEvent('event', 'zoom', {
+        sendGAEvent('event', 'zoom_photo', {
             event_category: 'galleria',
             event_label: photos[index].src,
             value: zoom
@@ -145,7 +145,7 @@ function Album(props) {
                     else
                         window.history.pushState({ view: photos[currentIndex].id }, '', location)
                     await log(photos[currentIndex].id, ACTION_INFO, user, meta)
-                    sendGAEvent('event', 'view', {
+                    sendGAEvent('event', 'view_photo', {
                         event_category: 'galleria',
                         event_label: photos[currentIndex].src
                     })
@@ -155,7 +155,7 @@ function Album(props) {
                         handleDebouncedZoom(zoom)
                 },
                 download: async ({ index: currentIndex }) => {
-                    sendGAEvent('event', 'download', {
+                    sendGAEvent('event', 'download_photo', {
                         event_category: 'galleria',
                         event_label: photos[currentIndex].src
                     })

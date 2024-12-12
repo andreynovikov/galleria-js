@@ -1,4 +1,4 @@
-import { GoogleAnalytics } from '@next/third-parties/google'
+import GaInit from 'components/gallery/ga-init'
 
 import { Nunito } from 'next/font/google'
 
@@ -19,7 +19,7 @@ export default function RootLayout({ children }) {
                     Powered by <a href="https://github.com/andreynovikov/galleria-js" target="_blank">galleria-js</a>
                 </footer>
             </body>
-            {process.env.GOOGLE_ANALYTICS_ID && <GoogleAnalytics gaId={process.env.GOOGLE_ANALYTICS_ID} />}
+            {process.env.GOOGLE_ANALYTICS_ID && <GaInit gaId={process.env.GOOGLE_ANALYTICS_ID} />}
         </html>
     )
 }
