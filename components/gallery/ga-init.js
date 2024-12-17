@@ -14,7 +14,7 @@ export default function GaInit(props) {
         gtag('get', gaId, 'client_id', (client_id) => {
             setCookie('ga_client_id', client_id, { sameSite: 'lax' })
         })
-    }, [])
+    }, [gaId])
 
     return <GoogleAnalytics gaId={gaId} />
 }
