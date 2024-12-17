@@ -44,25 +44,33 @@ function Album(props) {
     const pathname = usePathname()
     const searchParams = useSearchParams()
 
-    useEffect(() => {
+    const setIndexFromHash = (opener) => {
         if (window.location.hash.startsWith('#view-')) {
             const hs = window.location.hash.split('-')
             setIndex(hs[1])
             scrollTo(hs[2])
+        } else {
+            setIndex(-1)
+            if (opener !== null)
+                scrollTo(opener)
         }
+    }
 
+    const handleBackEvent = useCallback((event) => {
+        if (event.state)
+            setIndexFromHash(null)
+    }, [])
+
+    useEffect(() => {
         window.addEventListener('popstate', handleBackEvent)
         return () => window.removeEventListener('popstate', handleBackEvent)
-    }, [])
+    }, [handleBackEvent])
 
     useEffect(() => {
         const url = `${pathname}?${searchParams}`
         if (urlRef.current !== url) { // effect is fired even when only hash of url is changed
-            setIndex(-1)
             urlRef.current = url
-            const id = searchParams.get('opener')
-            if (id !== undefined)
-                scrollTo(id)
+            setIndexFromHash(searchParams.get('opener'))
         }
     }, [pathname, searchParams])
 
@@ -77,11 +85,6 @@ function Album(props) {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleDebouncedZoom = useCallback(debounce(handleZoom, 1000), [photos, index])
-
-    const handleBackEvent = (event) => {
-        if (event.state)
-            setIndex(-1)
-    }
 
     const handleImageLoad = async (e, photo) => {
         e.target.classList.add('lazyloaded')
