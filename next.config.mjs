@@ -33,9 +33,6 @@ const nextConfig = {
             }
         ]
     },
-    experimental: {
-        after: true
-    },
     webpack: config => {
         const oneOf = config.module.rules.find(
             rule => typeof rule.oneOf === 'object'

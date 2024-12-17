@@ -2,7 +2,7 @@ import { createReadStream } from 'fs'
 import { stat } from 'fs/promises'
 import { join } from 'path'
 
-import { unstable_after as after } from 'next/server'
+import { after } from 'next/server'
 
 import { auth } from 'auth'
 
