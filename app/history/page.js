@@ -54,7 +54,17 @@ export default async function History(props) {
                             pathname: `/history/${user.visitor.id ? user.visitor.id : 'ip/' + user.visitor.ip}/${day.day.format('YYYY-MM-DD')}`,
                             query: searchParams
                         }}>
-                            {user.visitor.id ? user.visitor.name || user.visitor.email : user.visitor.ip}
+                            {user.visitor.id ? (
+                                <>
+                                    {user.visitor.name || user.visitor.email}
+                                    <> - {user.visitor.ip}</>
+                                </>
+                            ) : (
+                                <>
+                                    {user.visitor.ip}
+                                    {user.visitor.name && <> - {user.visitor.name}</>}
+                                </>
+                            )}
                         </Link>
                         &nbsp;
                         ({user.count})
@@ -66,7 +76,7 @@ export default async function History(props) {
                                     {meta.browser.name ? <>
                                         {`${meta.browser.name}`}
                                         {meta.browser.major && meta.browser.type !== 'crawler' && `/${meta.browser.major}`}
-                                    </> : meta.ua }
+                                    </> : meta.ua}
                                     {meta.browser.type && ` (${meta.browser.type})`}
                                     {(meta.device.vendor || meta.device.type) && ' on '}
                                     {meta.device.vendor && `${meta.device.vendor} ${meta.device.model}`}
