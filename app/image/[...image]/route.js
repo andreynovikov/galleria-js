@@ -4,7 +4,7 @@ import { join } from 'path'
 
 import { after } from 'next/server'
 
-import { auth } from 'auth'
+import { auth } from '@/auth'
 
 import Image from '@/lib/image'
 import { writeLog } from '@/lib/db'

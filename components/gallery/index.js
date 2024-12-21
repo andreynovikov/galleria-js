@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Album from '@/components/album'
 import NothingFound from './nothing-found'
 
-import { getLabelMaps, listImages } from 'lib/db'
+import { getLabelMaps, listImages } from '@/lib/db'
 import { thumbnailWidths } from '@/lib/image'
 import { syncBundle } from '@/lib/images'
 import { bool, uaMeta } from '@/lib/utils'

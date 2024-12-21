@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { sendGAEvent } from '@next/third-parties/google'
 
 import { MasonryPhotoAlbum } from 'react-photo-album'
@@ -42,6 +42,7 @@ function Album(props) {
 
     const urlRef = useRef(undefined)
     const pathname = usePathname()
+    const router = useRouter()
     const searchParams = useSearchParams()
 
     const setIndexFromHash = (opener) => {
@@ -89,6 +90,15 @@ function Album(props) {
     const handleImageLoad = async (e, photo) => {
         e.target.classList.add('lazyloaded')
         log(photo.id, ACTION_THUMBNAIL, user, meta)
+    }
+
+    const handleDownload = () => {
+        const ids = photos.map(image => image.id)
+        sendGAEvent('event', 'download_photos', {
+            event_category: 'galleria',
+            event_label: ids.join()
+        })
+        router.push(`/download?images=${ids.join()}`)
     }
 
     const thumbnails = photos.map(image => (
@@ -175,6 +185,11 @@ function Album(props) {
                 slideFooter: ({ slide }) => <ImageDescription id={slide.id} className="image_description" />
             }}
         />
+        {user?.id && (
+            <div className="download">
+                <button onClick={handleDownload}>Скачать все фотографии</button>
+            </div>
+        )}
     </>
 }
 
