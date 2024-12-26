@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 import { sendGAEvent } from '@next/third-parties/google'
 
 import { MasonryPhotoAlbum } from 'react-photo-album'
@@ -18,6 +19,8 @@ import GridLoader from 'react-spinners/GridLoader'
 import ImageDescription from '@/components/image/description'
 
 import debounce from 'lodash.debounce'
+
+import lock from '@/assets/lock-password.svg'
 
 import 'react-photo-album/masonry.css'
 import 'yet-another-react-lightbox/styles.css'
@@ -75,8 +78,20 @@ function Album(props) {
         }
     }, [pathname, searchParams])
 
+    const signIn = () => {
+        const callbackUrl = urlRef.current + window.location.hash
+        router.push(`/api/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`)
+    }
+
+    const handleThumbnailClick = ({ index }) => {
+        if (photos[index].restricted && user.id === undefined)
+            signIn()
+        else
+            setIndex(index)
+    }
+
     const handleZoom = (zoom) => {
-        log(photos[index].id, ACTION_ZOOM, user, {zoom, ...meta})
+        log(photos[index].id, ACTION_ZOOM, user, { zoom, ...meta })
         sendGAEvent('event', 'zoom_photo', {
             event_category: 'galleria',
             event_label: photos[index].src,
@@ -125,7 +140,7 @@ function Album(props) {
                 if (containerWidth < 1201) return 10
                 return 15
             }}
-            onClick={({ index }) => setIndex(index)}
+            onClick={handleThumbnailClick}
             render={{
                 button: (props, { photo }) => (
                     <button
@@ -133,11 +148,15 @@ function Album(props) {
                         id={`thumbnail-${photo.id}`} />
                 ),
                 image: (props, { photo }) => (
-                    <LazyLoadImage
-                        {...props}
-                        scrollPosition={scrollPosition}
-                        threshold={0}
-                        onLoad={(e) => handleImageLoad(e, photo)} />
+                    <>
+                        <LazyLoadImage
+                            {...props}
+                            className={`${props.className}${photo.restricted && user.id === undefined ? ' restricted' : ''}`}
+                            scrollPosition={scrollPosition}
+                            threshold={0}
+                            onLoad={(e) => handleImageLoad(e, photo)} />
+                        {photo.restricted && user.id === undefined && <Image src={lock} alt="" unoptimized className="lock" />}
+                    </>
                 )
             }} />
         <Lightbox
@@ -182,14 +201,27 @@ function Album(props) {
                 buttonPrev: photos.length <= 1 ? () => null : undefined,
                 buttonNext: photos.length <= 1 ? () => null : undefined,
                 iconLoading: () => <GridLoader color="white" />,
+                slideContainer: ({ slide, children }) => (
+                    <div className={`slide_container${slide.restricted && user.id === undefined ? ' restricted' : ''}`}>
+                        {children}
+                        {slide.restricted && user.id === undefined && <Image src={lock} onClick={signIn} alt="" unoptimized className="lock" />}
+                    </div>
+                ),
                 slideFooter: ({ slide }) => <ImageDescription id={slide.id} className="image_description" />
             }}
         />
         {user?.id && (
             <div className="download">
-                <button onClick={handleDownload}>Скачать все фотографии</button>
+                <button className="button" onClick={handleDownload}>Скачать все фотографии</button>
             </div>
         )}
+        <svg className="hiddenSvg">
+            <filter id="sharpBlur">
+                <feGaussianBlur stdDeviation="8"></feGaussianBlur>
+                <feColorMatrix type="matrix" values="1 0 0 0 0, 0 1 0 0 0, 0 0 1 0 0, 0 0 0 9 0"></feColorMatrix>
+                <feComposite in2="SourceGraphic" operator="in"></feComposite>
+            </filter>
+        </svg>
     </>
 }
 

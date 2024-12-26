@@ -1,12 +1,54 @@
+.hiddenSvg {
+    // If you use `display: none`, Firefox isn’t able to reference the filter inside the SVG. This avoids
+    // the issue by using using .visuallyHidden from the HTML5 Boilerplate.
+    // -> https://github.com/h5bp/html5-boilerplate/blob/master/src/css/main.css#L119-L133
+    border: 0;
+    clip: rect(0 0 0 0);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    width: 1px;
+}
+
 .react-photo-album {
-    .react-photo-album--image {
-        opacity: 0;
-        transform: scale(0.9);
-    
-        &.lazyloaded {
-            opacity: 1;
-            transform: scale(1);
-            transition: all 500ms;
+    .react-photo-album--photo {
+        position: relative;
+
+        &:after {
+            content: ' ';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 99;
+        }
+
+        .react-photo-album--image {
+            opacity: 0;
+            transform: scale(0.9);
+
+            &.lazyloaded {
+                opacity: 1;
+                transform: scale(1);
+                transition: all 500ms;
+            }
+
+            &.restricted {
+                filter: url('#sharpBlur');
+            }
+        }
+
+        .lock {
+            position: absolute;
+            width: 40%;
+            height: auto;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.3;
         }
     }
 }
@@ -14,7 +56,7 @@
 .download {
     margin-top: 25px;
     text-align: center;
-    
+
     button {
         padding: .3rem .8rem;
         font-weight: normal;

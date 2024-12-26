@@ -71,6 +71,7 @@ export default async function Gallery({ bundle, searchParams }) {
             title: image.name,
             width: image.width,
             height: image.height,
+            restricted: image.restricted ?? false,
             srcSet: Object.entries(thumbnailWidths).map(([size, width]) => ({
                 src: `${basePath}${image.bundle}/${image.name}?format=thumbnail&size=${size}`,
                 width,
