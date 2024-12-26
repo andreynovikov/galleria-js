@@ -37,7 +37,7 @@ footer {
     text-align: center;
 }
 
-button {
+button.button { // Use class to distinguish real buttons from album photos
     background-color: #fff;
     border: 1px solid #ccc;
     border-radius: .5rem;

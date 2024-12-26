@@ -85,7 +85,7 @@ export default function LabelCloud({ labels }) {
                 onClick={handleOnPress} />
             {includedLabels.length > 0 && (
                 <div>
-                    <button onClick={handleButtonClick}>Показать</button>
+                    <button className="button" onClick={handleButtonClick}>Показать</button>
                 </div>
             )}
         </div>
