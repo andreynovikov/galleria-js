@@ -12,7 +12,6 @@
             right: 0;
             bottom: 0;
             left: 0;
-            z-index: 99;
         }
 
         &.restricted img {
@@ -28,6 +27,7 @@
             transform: translate(-50%, -50%);
             opacity: 0.3;
             cursor: pointer;
+	    z-index: 99;
         }
     }
 
