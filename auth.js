@@ -5,6 +5,7 @@ import MailRu from 'next-auth/providers/mailru'
 import Vk from 'next-auth/providers/vk'
 import Yandex from 'next-auth/providers/yandex'
 
+import { getUser } from 'lib/db'
 import { sendEvent } from 'lib/ga'
 
 const basePath = process.env.BASE_PATH ?? ''
@@ -43,18 +44,13 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
             await sendEvent('login', { 'method': account.provider })
             return true
         },
-        jwt({ token, account, user, profile }) {
-            if (profile?.sub)
-                token.id = profile.sub // Google
-            else if (profile?.id)
-                token.id = profile.id // Other
-            if (account)
-                token.provider = account.provider
+        async jwt({ token, account, user, profile }) {
+            if (profile && account)
+                token.visitor = await getUser(profile.sub /* Google */ ?? profile.id, account.provider, user)
             return token
         },
         session({ session, token }) {
-            session.user.id = token.id?.toString()
-            session.user.provider = token.provider
+            session.user = { ...session.user, ...token.visitor }
             return session
         },
     },

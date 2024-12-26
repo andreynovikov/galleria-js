@@ -45,8 +45,6 @@ export default async function Gallery({ bundle, searchParams }) {
     if (censored !== undefined)
         censored = +censored
 
-    const order = searchParams['-nav.order'] || 'stime'
-
     if (bundle && labels === undefined && notlabels === undefined && censored === undefined) {
         try {
             const shouldUpdateMetadata = bool(searchParams['updatemetadata'])
@@ -57,6 +55,11 @@ export default async function Gallery({ bundle, searchParams }) {
             }
         }
     }
+
+    if (censored === undefined && user.censorship !== undefined)
+        censored = user.censorship
+
+    const order = searchParams['-nav.order'] || 'stime'
 
     const images = await listImages({ bundle, labels, notlabels, from, till, censored }, order)
 

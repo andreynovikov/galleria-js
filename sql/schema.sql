@@ -29,10 +29,17 @@ CREATE TABLE label_image (
 
 CREATE TABLE log (
     image integer NOT NULL,
-    visitor character varying(60) NOT NULL,
+    visitor jsonb NOT NULL,
     status integer NOT NULL,
     ctime timestamp without time zone DEFAULT now(),
     meta jsonb
+);
+
+CREATE TABLE visitor (
+    id character varying NOT NULL,
+    provider character varying NOT NULL,
+    data jsonb,
+    censorship integer DEFAULT 0 NOT NULL
 );
 
 CREATE INDEX image_bundle ON image USING btree (bundle);
@@ -40,6 +47,8 @@ CREATE INDEX image_bundle ON image USING btree (bundle);
 CREATE UNIQUE INDEX label_name ON label USING btree (name);
 
 CREATE UNIQUE INDEX label_image_label_image ON label_image USING btree (label, image);
+
+CREATE UNIQUE INDEX visitor_id ON visitor USING btree (id, provider);
 
 ALTER TABLE ONLY label_image
     ADD CONSTRAINT label_image_image_fkey FOREIGN KEY (image) REFERENCES image(id) ON DELETE CASCADE;
