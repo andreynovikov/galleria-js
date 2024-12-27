@@ -69,7 +69,6 @@ export default function LabelCloud({ labels }) {
     const handleButtonClick = () => {
         const uri = '/?-filt.labels=' + includedLabels.join(',') +
             (excludedLabels.length > 0 ? '&-filt.notlabels=' + excludedLabels.join(',') : '')
-        console.log(uri)
         router.push(uri)
     }
 
