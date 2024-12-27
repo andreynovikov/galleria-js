@@ -79,7 +79,7 @@ function Album(props) {
     }, [pathname, searchParams])
 
     const signIn = () => {
-        const callbackUrl = urlRef.current + window.location.hash
+        const callbackUrl = window.location.href.substring(window.location.origin.length)
         router.push(`/api/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`)
     }
 
