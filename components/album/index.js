@@ -209,6 +209,11 @@ function Album(props) {
                 ),
                 slideFooter: ({ slide }) => <ImageDescription id={slide.id} className="image_description" />
             }}
+            download={{
+                download: ({ slide, saveAs }) => { // this is required for disableable downloads
+                    saveAs(slide.download)
+                }
+            }}
         />
         {user?.id && (
             <div className="download">
