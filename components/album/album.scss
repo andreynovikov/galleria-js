@@ -14,18 +14,6 @@
 
 .react-photo-album {
     .react-photo-album--photo {
-        position: relative;
-
-        &:after {
-            content: ' ';
-            position: absolute;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            left: 0;
-            z-index: 99;
-        }
-
         .react-photo-album--image {
             opacity: 0;
             transform: scale(0.9);

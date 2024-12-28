@@ -84,7 +84,7 @@ function Album(props) {
     }
 
     const handleThumbnailClick = ({ index }) => {
-        if (photos[index].restricted && user.id === undefined)
+        if (photos[index].restricted && user?.id === undefined)
             signIn()
         else
             setIndex(index)
@@ -102,8 +102,8 @@ function Album(props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleDebouncedZoom = useCallback(debounce(handleZoom, 1000), [photos, index])
 
-    const handleImageLoad = async (e, photo) => {
-        e.target.classList.add('lazyloaded')
+    const handleImageLoad = async (event, photo) => {
+        event.target.classList.add('lazyloaded')
         log(photo.id, ACTION_THUMBNAIL, ip, user, meta)
     }
 
@@ -114,6 +114,10 @@ function Album(props) {
             event_label: ids.join()
         })
         router.push(`/download?images=${ids.join()}`)
+    }
+
+    const handleContextMenu = (event) => {
+        event.preventDefault()
     }
 
     const thumbnails = photos.map(image => (
@@ -151,11 +155,14 @@ function Album(props) {
                     <>
                         <LazyLoadImage
                             {...props}
-                            className={`${props.className}${photo.restricted && user.id === undefined ? ' restricted' : ''}`}
+                            className={`${props.className}${photo.restricted && user?.id === undefined ? ' restricted' : ''}`}
                             scrollPosition={scrollPosition}
                             threshold={0}
+                            onContextMenu={handleContextMenu}
                             onLoad={(e) => handleImageLoad(e, photo)} />
-                        {photo.restricted && user.id === undefined && <Image src={lock} alt="" unoptimized className="lock" />}
+                        {photo.restricted && user?.id === undefined && (
+                            <Image src={lock} alt="" unoptimized onContextMenu={handleContextMenu} className="lock" />
+                        )}
                     </>
                 )
             }} />
@@ -202,9 +209,11 @@ function Album(props) {
                 buttonNext: photos.length <= 1 ? () => null : undefined,
                 iconLoading: () => <GridLoader color="white" />,
                 slideContainer: ({ slide, children }) => (
-                    <div className={`slide_container${slide.restricted && user.id === undefined ? ' restricted' : ''}`}>
+                    <div onContextMenu={handleContextMenu} className={`slide_container${slide.restricted && user?.id === undefined ? ' restricted' : ''}`}>
                         {children}
-                        {slide.restricted && user.id === undefined && <Image src={lock} onClick={signIn} alt="" unoptimized className="lock" />}
+                        {slide.restricted && user?.id === undefined && (
+                            <Image src={lock} onClick={signIn} alt="" unoptimized onContextMenu={handleContextMenu} className="lock" />
+                        )}
                     </div>
                 ),
                 slideFooter: ({ slide }) => <ImageDescription id={slide.id} className="image_description" />
