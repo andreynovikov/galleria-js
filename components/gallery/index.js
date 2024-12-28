@@ -69,7 +69,7 @@ export default async function Gallery({ bundle, searchParams }) {
         {
             id: image.id,
             src: `${basePath}${image.bundle}/${image.name}`,
-            download: image.restricted && user.id === undefined ? false : `${basePath}${image.bundle}/${image.name}?format=original`,
+            download: image.restricted && session?.user?.id === undefined ? false : `${basePath}${image.bundle}/${image.name}?format=original`,
             title: image.name,
             width: image.width,
             height: image.height,
