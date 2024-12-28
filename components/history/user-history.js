@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { redirect } from 'next/navigation'
 import moment from 'moment'
 
@@ -65,14 +66,14 @@ export default async function UserHistory(props) {
                     {day.day.format('LL')}
                 </h1>
 
-                {Array.from(day.visitors.values()).map(visitor => (
-                    <>
+                {Array.from(day.visitors.entries()).map(([key, visitor]) => (
+                    <Fragment key={key}>
                         <h2>
                             <div>
                                 {visitor.profile.name || visitor.profile.email || filters.ip}
                                 {visitor.profile.id && (
                                     <>
-                                        {visitor.profile.name && <div className="profile">email: {visitor.profile.email}</div>}
+                                        {visitor.profile.name && visitor.profile.email && <div className="profile">email: {visitor.profile.email}</div>}
                                         {Object.entries(visitor.profile).filter(([k, v]) => !['name', 'email', 'image'].includes(k)).map(([k, v]) => (
                                             <div className="profile" key={k}>{k}: {v}</div>
                                         ))}
@@ -97,7 +98,7 @@ export default async function UserHistory(props) {
                                 </a>
                             ))}
                         </div>
-                    </>
+                    </Fragment>
                 ))}
             </div>
         ))
