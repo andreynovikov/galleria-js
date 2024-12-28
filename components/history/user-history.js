@@ -15,18 +15,16 @@ export default async function UserHistory(props) {
         redirect('/api/auth/signin')
 
     const filters = {
-        user: params.user && decodeURIComponent(params.user),
-        ip: params.ip && decodeURIComponent(params.ip),
+        ip: decodeURIComponent(params.ip),
         label: searchParams['-filt.label'],
         status: searchParams['-filt.status']
     }
     if (params.day)
         filters.day = decodeURIComponent(params.day)
     const images = await getUserLog(filters)
-    const visitor = images[0].visitor
 
     const days = images.reduce((days, image) => {
-        const last = days.at(-1)
+        const lastDay = days.at(-1)
         const day = moment(image.day ?? params.day)
         image.meta = image.meta.reduce((meta, item) => {
             if (item?.zoom) {
@@ -34,49 +32,74 @@ export default async function UserHistory(props) {
             }
             return meta
         }, {})
-        if (!last?.day.isSame(day, 'day')) {
+        const visitorKey = `${image.visitor_id}@${image.visitor_provider}`
+        const profile = {
+            id: image.visitor_id,
+            provider: image.visitor_provider,
+            ...image.visitor
+        }
+        if (!lastDay?.day.isSame(day, 'day')) {
             days.push({
                 day,
+                visitors: new Map()
+            })
+            days.at(-1).visitors.set(visitorKey, {
+                profile,
+                images: [image]
+            })
+        } else if (!lastDay.visitors.has(visitorKey)) {
+            lastDay.visitors.set(visitorKey, {
+                profile,
                 images: [image]
             })
         } else {
-            last.images.push(image)
+            lastDay.visitors.get(visitorKey).images.push(image)
         }
         return days
     }, [])
 
     return (
-        <>
-            <h1>
-                {visitor.name || visitor.email || visitor.ip}
-                {visitor.id && Object.entries(visitor).map(([k, v]) => (
-                    <div className="visitor" key={k}>{k}: {v}</div>
+        days.map(day => (
+            <div key={day.day}>
+                <h1>
+                    {day.day.format('LL')}
+                </h1>
+
+                {Array.from(day.visitors.values()).map(visitor => (
+                    <>
+                        <h2>
+                            <div>
+                                {visitor.profile.name || visitor.profile.email || filters.ip}
+                                {visitor.profile.id && (
+                                    <>
+                                        {visitor.profile.name && <div className="profile">email: {visitor.profile.email}</div>}
+                                        {Object.entries(visitor.profile).filter(([k, v]) => !['name', 'email', 'image'].includes(k)).map(([k, v]) => (
+                                            <div className="profile" key={k}>{k}: {v}</div>
+                                        ))}
+                                    </>
+                                )}
+                            </div>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            {visitor.profile.image && <img src={visitor.profile.image} className="profileImage" />}
+                        </h2>
+                        <div className="images">
+                            {visitor.images.map(image => (
+                                <a href={`${basePath}${image.bundle}/${image.name}`} key={image.id}>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                        loading="lazy"
+                                        decoding="async"
+                                        src={`${basePath}${image.bundle}/${image.name}?format=thumbnail&size=s`}
+                                        className={`status${image.status}`}
+                                        alt={`${image.bundle}/${image.name}`}
+                                        title={image.meta.zoom}
+                                        style={{ aspectRatio: image.width / image.height }} />
+                                </a>
+                            ))}
+                        </div>
+                    </>
                 ))}
-            </h1>
-            {days.map(day => (
-                <div key={day.day}>
-                    <div className="date">
-                        {day.day.format('LL')}
-                    </div>
-
-                    <div className="images">
-                        {day.images.map(image => (
-                            <a href={`${basePath}${image.bundle}/${image.name}`} key={image.id}>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                    loading="lazy"
-                                    decoding="async"
-                                    src={`${basePath}${image.bundle}/${image.name}?format=thumbnail&size=s`}
-                                    className={`status${image.status}`}
-                                    alt={`${image.bundle}/${image.name}`}
-                                    title={image.meta.zoom}
-                                    style={{ aspectRatio: image.width / image.height }} />
-                            </a>
-
-                        ))}
-                    </div>
-                </div>
-            ))}
-        </>
+            </div>
+        ))
     )
 }

@@ -9,8 +9,23 @@
         margin-bottom: 10px;
     }
 
-    .visitor {
+    h1 {
+        margin: 0 0 10px;
+    }
+
+    h2 {
+        display: flex;
+        margin: 0 0 5px;
+        gap: 10px;
+    }
+
+    .profile {
         font-size: small;
+    }
+
+    .profileImage {
+        max-width: 48px;
+        max-height: 48px;
     }
 
     .date {

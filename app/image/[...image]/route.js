@@ -32,8 +32,7 @@ function streamFile(path) {
 export async function GET(request, segmentData) {
     const params = await segmentData.params
     const session = await auth()
-    const user = session?.user ?? {}
-    user.ip = (request.headers.get('x-real-ip') ?? request.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
+    const ip = (request.headers.get('x-real-ip') ?? request.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
     const format = request.nextUrl.searchParams.get('format')
     const ratio = +request.nextUrl.searchParams.get('ratio') || 1.0
     const thumbnailSize = request.nextUrl.searchParams.get('size') || 'm'
@@ -100,18 +99,12 @@ export async function GET(request, segmentData) {
 
     after(() => {
         const meta = uaMeta(request.headers)
-        image.fetchData().then(() => writeLog(image.id, action, user, meta))
+        image.fetchData().then(() => writeLog(image.id, action, ip, session?.user, meta))
     })
 
     return new Response(stream, {
         status: 200,
         headers: new Headers({
-            /*
-            "content-disposition":
-                `attachment; filename=${path.basename(
-                    filePath
-                )}`,
-            */
             'content-type': 'image/' + type,
             'content-length': size + ''
         })

@@ -39,7 +39,7 @@ function scrollTo(id) {
 }
 
 function Album(props) {
-    const { photos, user, meta, scrollPosition } = props
+    const { photos, ip, user, meta, scrollPosition } = props
 
     const [index, setIndex] = useState(-1)
 
@@ -91,7 +91,7 @@ function Album(props) {
     }
 
     const handleZoom = (zoom) => {
-        log(photos[index].id, ACTION_ZOOM, user, { zoom, ...meta })
+        log(photos[index].id, ACTION_ZOOM, ip, user, { zoom, ...meta })
         sendGAEvent('event', 'zoom_photo', {
             event_category: 'galleria',
             event_label: photos[index].src,
@@ -104,7 +104,7 @@ function Album(props) {
 
     const handleImageLoad = async (e, photo) => {
         e.target.classList.add('lazyloaded')
-        log(photo.id, ACTION_THUMBNAIL, user, meta)
+        log(photo.id, ACTION_THUMBNAIL, ip, user, meta)
     }
 
     const handleDownload = () => {
@@ -176,7 +176,7 @@ function Album(props) {
                         window.history.replaceState({ view: photos[currentIndex].id }, '', location)
                     else
                         window.history.pushState({ view: photos[currentIndex].id }, '', location)
-                    await log(photos[currentIndex].id, ACTION_INFO, user, meta)
+                    await log(photos[currentIndex].id, ACTION_INFO, ip, user, meta)
                     sendGAEvent('event', 'view_photo', {
                         event_category: 'galleria',
                         event_label: photos[currentIndex].src

@@ -28,9 +28,7 @@ export default async function History(props) {
     const days = users.reduce((days, user) => {
         const last = days.at(-1)
         const day = moment(user.day)
-        user.meta = user.meta.filter(meta => (
-            meta.browser || meta.ua || meta.device
-        ))
+        user.meta = user.meta.filter(meta => meta.browser || meta.ua || meta.device)
         if (!last?.day.isSame(day, 'day')) {
             days.push({
                 day,
@@ -49,22 +47,18 @@ export default async function History(props) {
             </div>
             <div>
                 {day.users.map(user => (
-                    <div key={user.visitor.id ?? user.visitor.ip}>
+                    <div key={user.ip}>
                         <Link href={{
-                            pathname: `/history/${user.visitor.id ? user.visitor.id : 'ip/' + user.visitor.ip}/${day.day.format('YYYY-MM-DD')}`,
+                            pathname: `/history/${user.ip}/${day.day.format('YYYY-MM-DD')}`,
                             query: searchParams
                         }}>
-                            {user.visitor.id ? (
-                                <>
-                                    {user.visitor.name || user.visitor.email}
-                                    <> - {user.visitor.ip}</>
-                                </>
-                            ) : (
-                                <>
-                                    {user.visitor.ip}
-                                    {user.visitor.name && <> - {user.visitor.name}</>}
-                                </>
-                            )}
+                            {user.ip}
+                            {user.visitors.map((visitor, index) => (
+                                <Fragment key={index}>
+                                    {index == 0 ? ' - ' : ', '}
+                                    {visitor.name || visitor.email}
+                                </Fragment>
+                            ))}
                         </Link>
                         &nbsp;
                         ({user.count})

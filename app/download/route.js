@@ -11,12 +11,11 @@ const screenMaxWidth = Number(process.env.SCREEN_MAX_WIDTH)
 
 export async function GET(request) {
     const session = await auth()
-    const user = session?.user ?? {}
 
     if (!session.user)
         redirect('/api/auth/signin')
 
-    user.ip = (request.headers.get('x-real-ip') ?? request.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
+    const ip = (request.headers.get('x-real-ip') ?? request.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
     const meta = uaMeta(request.headers)
 
     const ids = (request.nextUrl.searchParams.get('images') ?? '').split(',')
@@ -37,7 +36,7 @@ export async function GET(request) {
                     width = Math.round(image.width / image.height * width)
                 const resized = await image.getResized(width)
                 archive.append(resized.data, { name: image.name })
-                writeLog(id, ACTION_DOWNLOAD, user, meta)
+                writeLog(id, ACTION_DOWNLOAD, ip, session?.user, meta)
             }
             archive.finalize()
         },
@@ -48,7 +47,7 @@ export async function GET(request) {
     return new Response(stream, {
         status: 200,
         headers: new Headers({
-            "content-disposition": `attachment; filename=${filename}`,
+            'content-disposition': `attachment; filename=${filename}`,
             'content-type': 'text/plain'
         })
     })

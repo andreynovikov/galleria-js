@@ -18,10 +18,9 @@ const basePath = process.env.BASE_PATH ?? ''
 
 export default async function Gallery({ bundle, searchParams }) {
     const session = await auth()
-    const user = session?.user ?? {}
     const header = await headers()
     const meta = await uaMeta(header)
-    user.ip = (header.get('x-real-ip') ?? header.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
+    const ip = (header.get('x-real-ip') ?? header.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
     const labelIds = await getLabelMaps()
 
     let labels = searchParams['-filt.labels']
@@ -56,8 +55,8 @@ export default async function Gallery({ bundle, searchParams }) {
         }
     }
 
-    if (censored === undefined && user.censorship !== undefined)
-        censored = user.censorship
+    if (censored === undefined && session?.user?.censorship !== undefined)
+        censored = session.user.censorship
 
     const order = searchParams['-nav.order'] || 'stime'
 
@@ -104,7 +103,7 @@ export default async function Gallery({ bundle, searchParams }) {
             <div className={styles.topMenu}>
                 <Link href="/">Все альбомы</Link>
             </div>
-            <Album photos={photos} user={user} meta={JSON.parse(JSON.stringify(meta))} />
+            <Album photos={photos} ip={ip} user={session?.user} meta={JSON.parse(JSON.stringify(meta))} />
             <ShowEvent />
         </>
     )
