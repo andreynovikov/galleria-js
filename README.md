@@ -11,14 +11,14 @@ Galleria is a responsive and mobile friendly web application designed for presen
 
 ## Examples
 
-* [Entrance page with selection by label](https://andreynovikov.info/photos)
-* [Huge bundle with hundreds of photos](https://andreynovikov.info/photos/travel/Georgia/2015)
-* [Bundle filtered by shooting time](https://andreynovikov.info/photos/travel/Georgia/2015?-filt.from=2015-06-25&-filt.till=2015-06-26)
-* [All photos filtered by label](https://andreynovikov.info/photos/?-filt.labels=10&-filt.notlabels=13)
-* [Photos filtered by named labes](https://andreynovikov.info/photos?-filt.labels=Омало,Таня)
-* [Single photo, original image file, huge](https://andreynovikov.info/photos/travel/Georgia/2015/IMG_2171.JPG?format=original)
-* [Single photo, optimized](https://andreynovikov.info/photos/travel/Georgia/2015/IMG_2171.JPG)
-* [Single thumbnail](https://andreynovikov.info/photos/travel/Georgia/2015/IMG_2171.JPG?format=thumbnail)
+* [Entrance page with selection by label](https://newf.ru/photos)
+* [Huge bundle with hundreds of photos](https://newf.ru/photos/travel/Georgia/2015)
+* [Bundle filtered by shooting time](https://newf.ru/photos/travel/Georgia/2015?-filt.from=2015-06-25&-filt.till=2015-06-26)
+* [All photos filtered by label](https://newf.ru/photos/?-filt.labels=10&-filt.notlabels=13)
+* [Photos filtered by named labes](https://newf.ru/photos?-filt.labels=Омало,Таня)
+* [Single photo, original image file, huge](https://newf.ru/photos/travel/Georgia/2015/IMG_2171.JPG?format=original)
+* [Single photo, optimized](https://newf.ru/photos/travel/Georgia/2015/IMG_2171.JPG)
+* [Single thumbnail](https://newf.ru/photos/travel/Georgia/2015/IMG_2171.JPG?format=thumbnail)
 
 Last two examples are useful for blogging – photos can be inserted in text as if they are static.
 
