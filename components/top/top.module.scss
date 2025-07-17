@@ -1,0 +1,45 @@
+.top {
+    display: flex;
+    overflow: hidden;
+    margin-bottom: 25px;
+
+    .photo {
+        display: inline-block;
+        width: auto;
+        height: 100px;
+        position: relative;
+
+        .image {
+            width: auto;
+            height: 100px;
+
+            &.restricted {
+                filter: url('#sharpBlur');
+            }
+        }
+
+        .lock {
+            position: absolute;
+            height: 40%;
+            width: auto;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.3;
+        }
+    }
+}
+
+.hiddenSvg {
+    // If you use `display: none`, Firefox isn’t able to reference the filter inside the SVG. This avoids
+    // the issue by using using .visuallyHidden from the HTML5 Boilerplate.
+    // -> https://github.com/h5bp/html5-boilerplate/blob/master/src/css/main.css#L119-L133
+    border: 0;
+    clip: rect(0 0 0 0);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    width: 1px;
+}

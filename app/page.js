@@ -1,5 +1,6 @@
 import Gallery from '@/components/gallery'
 import Selector from '@/components/selector'
+import Top from '@/components/top'
 
 import { getTitle } from '@/lib/meta'
 
@@ -8,7 +9,12 @@ export default async function Page(props) {
     if (Object.keys(searchParams).length > 0)
         return <Gallery searchParams={searchParams} />
     else
-        return <Selector />
+        return (
+        <>
+            <Top />
+            <Selector />
+        </>
+        )
 }
 
 export async function generateMetadata(props) {
