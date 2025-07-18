@@ -3,7 +3,7 @@ import Image from 'next/image'
 
 import lock from '@/assets/lock-password.svg'
 
-import { listImages } from '@/lib/db'
+import { getRandomImages } from '@/lib/db'
 import { thumbnailWidths } from '@/lib/image'
 
 import { auth } from '@/auth'
@@ -15,13 +15,14 @@ import styles from './top.module.scss'
 export default async function Top() {
     const session = await auth()
 
-    const images = await listImages({ top: true, censored: 1 })
+    const images = await getRandomImages(15)
 
-    const photos = images.map((image) => (
+    const photos = images.map(image => (
         {
             id: image.id,
             src: `${basePath}${image.bundle}/${image.name}`,
-            href: `${basePath}${image.bundle}?opener=${image.id}${image.restricted ? '&-filt.censored=1' : ''}`,
+            href: `${image.bundle}?opener=${image.id}`,
+            title: image.name,
             width: image.width,
             height: image.height,
             restricted: image.restricted ?? false,
@@ -41,13 +42,14 @@ export default async function Top() {
         <>
             <div className={styles.top}>
                 {photos.map(photo => (
-                    <Link className={styles.photo} href={photo.href}>
+                    <Link className={styles.photo} href={photo.href} key={photo.id}>
                         <Image
                             src={photo.src}
                             srcSet={photo.srcSet}
                             width={photo.width}
                             height={photo.height}
-                            sizes="25vw"
+                            sizes="(width <= 600px) 10vw, 25vw"
+                            alt={photo.title}
                             className={`${styles.image}${photo.restricted && session?.user?.id === undefined ? ' ' + styles.restricted : ''}`} />
                         {photo.restricted && session?.user?.id === undefined && (
                             <Image src={lock} alt="" unoptimized className={styles.lock} />

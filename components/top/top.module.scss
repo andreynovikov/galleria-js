@@ -1,17 +1,28 @@
 .top {
     display: flex;
     overflow: hidden;
-    margin-bottom: 25px;
+    justify-content: center;
+    margin-bottom: 15px;
+
+    @media (max-width: 800px) {
+        & {
+            margin-bottom: 5px;
+	}
+    }
 
     .photo {
         display: inline-block;
-        width: auto;
-        height: 100px;
         position: relative;
 
         .image {
             width: auto;
             height: 100px;
+
+            @media (max-width: 800px) {
+                & {
+                    height: 60px;
+                }
+            }
 
             &.restricted {
                 filter: url('#sharpBlur');
