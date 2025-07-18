@@ -1,21 +1,21 @@
-import Link from 'next/link'
-import Image from 'next/image'
-
-import lock from '@/assets/lock-password.svg'
+import { headers } from 'next/headers'
 
 import { getRandomImages } from '@/lib/db'
 import { thumbnailWidths } from '@/lib/image'
+import { uaMeta } from '@/lib/utils'
 
 import { auth } from '@/auth'
+import PhotoSwiper from './swiper'
 
 const basePath = process.env.BASE_PATH ?? ''
 
-import styles from './top.module.scss'
-
 export default async function Top() {
     const session = await auth()
+    const header = await headers()
+    const meta = await uaMeta(header)
+    const ip = (header.get('x-real-ip') ?? header.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
 
-    const images = await getRandomImages(15)
+    const images = await getRandomImages(45)
 
     const photos = images.map(image => (
         {
@@ -38,32 +38,5 @@ export default async function Top() {
         }
     ))
 
-    return (
-        <>
-            <div className={styles.top}>
-                {photos.map(photo => (
-                    <Link className={styles.photo} href={photo.href} key={photo.id}>
-                        <Image
-                            src={photo.src}
-                            srcSet={photo.srcSet}
-                            width={photo.width}
-                            height={photo.height}
-                            sizes="(width <= 600px) 10vw, 25vw"
-                            alt={photo.title}
-                            className={`${styles.image}${photo.restricted && session?.user?.id === undefined ? ' ' + styles.restricted : ''}`} />
-                        {photo.restricted && session?.user?.id === undefined && (
-                            <Image src={lock} alt="" unoptimized className={styles.lock} />
-                        )}
-                    </Link>
-                ))}
-            </div>
-            <svg className={styles.hiddenSvg}>
-                <filter id="sharpBlur">
-                    <feGaussianBlur stdDeviation="1"></feGaussianBlur>
-                    <feColorMatrix type="matrix" values="1 0 0 0 0, 0 1 0 0 0, 0 0 1 0 0, 0 0 0 9 0"></feColorMatrix>
-                    <feComposite in2="SourceGraphic" operator="in"></feComposite>
-                </filter>
-            </svg>
-        </>
-    )
+    return <PhotoSwiper photos={photos} ip={ip} user={session?.user} meta={JSON.parse(JSON.stringify(meta))} />
 }

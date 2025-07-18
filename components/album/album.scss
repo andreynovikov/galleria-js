@@ -1,17 +1,3 @@
-.hiddenSvg {
-    // If you use `display: none`, Firefox isn’t able to reference the filter inside the SVG. This avoids
-    // the issue by using using .visuallyHidden from the HTML5 Boilerplate.
-    // -> https://github.com/h5bp/html5-boilerplate/blob/master/src/css/main.css#L119-L133
-    border: 0;
-    clip: rect(0 0 0 0);
-    height: 1px;
-    margin: -1px;
-    overflow: hidden;
-    padding: 0;
-    position: absolute;
-    width: 1px;
-}
-
 .react-photo-album {
     .react-photo-album--photo {
         .react-photo-album--image {

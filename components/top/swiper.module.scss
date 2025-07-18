@@ -1,7 +1,4 @@
-.top {
-    display: flex;
-    overflow: hidden;
-    justify-content: center;
+.swiper {
     margin-bottom: 15px;
 
     @media (max-width: 800px) {
@@ -10,18 +7,27 @@
 	}
     }
 
-    .photo {
+    .slide {
         display: inline-block;
         position: relative;
+        width: auto;
 
         .image {
             width: auto;
             height: 100px;
+            opacity: 0.2;
+            transform: scale(0.9);
 
             @media (max-width: 800px) {
                 & {
                     height: 60px;
                 }
+            }
+
+            &.lazyloaded {
+                opacity: 1;
+                transform: scale(1);
+                transition: all 500ms;
             }
 
             &.restricted {
@@ -39,18 +45,4 @@
             opacity: 0.3;
         }
     }
-}
-
-.hiddenSvg {
-    // If you use `display: none`, Firefox isn’t able to reference the filter inside the SVG. This avoids
-    // the issue by using using .visuallyHidden from the HTML5 Boilerplate.
-    // -> https://github.com/h5bp/html5-boilerplate/blob/master/src/css/main.css#L119-L133
-    border: 0;
-    clip: rect(0 0 0 0);
-    height: 1px;
-    margin: -1px;
-    overflow: hidden;
-    padding: 0;
-    position: absolute;
-    width: 1px;
 }
