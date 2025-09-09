@@ -9,20 +9,6 @@
                 transform: scale(1);
                 transition: all 500ms;
             }
-
-            &.restricted {
-                filter: url('#sharpBlur');
-            }
-        }
-
-        .lock {
-            position: absolute;
-            width: 40%;
-            height: auto;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            opacity: 0.3;
         }
     }
 }

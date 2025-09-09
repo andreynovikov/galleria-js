@@ -68,18 +68,18 @@ export default async function Gallery({ bundle, searchParams }) {
     const photos = images.map((image) => (
         {
             id: image.id,
-            src: `${basePath}${image.bundle}/${image.name}`,
+            src: `${basePath}${image.bundle}/${image.name}?sid=${session?.user.id ?? ''}`,
             download: image.restricted && session?.user?.id === undefined ? false : `${basePath}${image.bundle}/${image.name}?format=original`,
             title: image.name,
             width: image.width,
             height: image.height,
             restricted: image.restricted ?? false,
             srcSet: Object.entries(thumbnailWidths).map(([size, width]) => ({
-                src: `${basePath}${image.bundle}/${image.name}?format=thumbnail&size=${size}`,
+                src: `${basePath}${image.bundle}/${image.name}?format=thumbnail&size=${size}&sid=${session?.user.id ?? ''}`,
                 width,
                 height: Math.round((image.height / image.width) * width)
             })).concat([{
-                src: `${basePath}${image.bundle}/${image.name}`,
+                src: `${basePath}${image.bundle}/${image.name}?sid=${session?.user.id ?? ''}`,
                 width: Number(process.env.SCREEN_MAX_WIDTH),
                 height: Math.round((image.height / image.width) * Number(process.env.SCREEN_MAX_WIDTH))
             }])

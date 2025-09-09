@@ -12,6 +12,14 @@
         position: relative;
         width: auto;
 
+        &:first-child {
+            margin-left: auto;
+        }
+
+        &:last-child {
+            margin-right: auto;
+        }
+
         .image {
             width: auto;
             height: 100px;
@@ -20,7 +28,7 @@
 
             @media (max-width: 800px) {
                 & {
-                    height: 60px;
+                    height: 75px;
                 }
             }
 
@@ -29,20 +37,6 @@
                 transform: scale(1);
                 transition: all 500ms;
             }
-
-            &.restricted {
-                filter: url('#sharpBlur');
-            }
-        }
-
-        .lock {
-            position: absolute;
-            height: 40%;
-            width: auto;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            opacity: 0.3;
         }
     }
 }

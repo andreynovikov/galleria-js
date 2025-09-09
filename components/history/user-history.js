@@ -81,17 +81,16 @@ export default async function UserHistory(props) {
                                 )}
                             </div>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            {visitor.profile.image && <img src={visitor.profile.image} className="profileImage" />}
+                            {visitor.profile.image && <img src={visitor.profile.image} className="profileImage" alt={visitor.profile.name} />}
                         </h2>
                         <div className="images">
                             {visitor.images.map(image => (
-                                <a href={`${basePath}${image.bundle}/${image.name}`} key={image.id}>
+                                <a href={`${basePath}${image.bundle}/${image.name}`} className={`status${image.status}`} key={image.id}>
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                         loading="lazy"
                                         decoding="async"
                                         src={`${basePath}${image.bundle}/${image.name}?format=thumbnail&size=s`}
-                                        className={`status${image.status}`}
                                         alt={`${image.bundle}/${image.name}`}
                                         title={image.meta.zoom}
                                         style={{ aspectRatio: image.width / image.height }} />

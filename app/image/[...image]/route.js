@@ -7,8 +7,8 @@ import { after } from 'next/server'
 import { auth } from '@/auth'
 
 import Image from '@/lib/image'
-import { writeLog } from '@/lib/db'
-import { uaMeta, ACTION_ORIGINAL, ACTION_VIEW, ACTION_EXPORT, ACTION_THUMBNAIL } from '@/lib/utils'
+import { getRestrictedLabels, writeLog } from '@/lib/db'
+import { uaMeta, ACTION_ORIGINAL, ACTION_VIEW, ACTION_EXPORT, ACTION_THUMBNAIL, ACTION_LOCKED } from '@/lib/utils'
 
 const screenMaxWidth = Number(process.env.SCREEN_MAX_WIDTH)
 const exportMaxWidth = Number(process.env.EXPORT_MAX_WIDTH)
@@ -34,9 +34,10 @@ export async function GET(request, segmentData) {
     const session = await auth()
     const ip = (request.headers.get('x-real-ip') ?? request.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
     const format = request.nextUrl.searchParams.get('format')
-    const ratio = +request.nextUrl.searchParams.get('ratio') || 1.0
-    const thumbnailSize = request.nextUrl.searchParams.get('size') || 'm'
-    const force = request.nextUrl.searchParams.get('force')
+    const ratio = +(request.nextUrl.searchParams.get('ratio') ?? 1.0)
+    const thumbnailSize = request.nextUrl.searchParams.get('size') ?? 'm'
+    const vertical = request.nextUrl.searchParams.get('constraint') === 'vertical'
+    const force = request.nextUrl.searchParams.get('force') ?? false
     const image = Image.fromPath(request.nextUrl.pathname)
     const fileName = params.image.at(-1)
     let path
@@ -44,11 +45,18 @@ export async function GET(request, segmentData) {
     let size
     let type
     let action
+    let restricted = false
+
+    if (!session?.user && process.env.RESTRICTED_LABELS !== undefined) {
+	const restrictedLabels = await getRestrictedLabels()
+	await image.fetchLabels()
+	restricted = image.labels.filter(label => restrictedLabels.includes(label.id)).length > 0
+    }
 
     if (format === 'thumbnail') {
-        ({ type, size, path } = await image.makeThumbnail(thumbnailSize, force))
+        ({ type, size, path } = await image.makeThumbnail(thumbnailSize, vertical, force, restricted))
         stream = streamFile(path)
-        action = ACTION_THUMBNAIL
+        action = restricted ? ACTION_LOCKED : ACTION_THUMBNAIL
     } else {
         path = join(process.env.PHOTOS_FOLDER, request.nextUrl.pathname)
         try {
@@ -68,6 +76,10 @@ export async function GET(request, segmentData) {
             }
         }
         if (format === 'original') {
+	    if (restricted)
+		return new Response('Forbidden', {
+                    status: 403
+                })
             stream = streamFile(path)
             action = ACTION_ORIGINAL
         } else {
@@ -86,11 +98,13 @@ export async function GET(request, segmentData) {
                 width = Math.round(width * ratio)
             if (image.width < image.height)
                 width = Math.round(image.width / image.height * width)
-            if (image.width > width * screenDelta) {
+            if (image.width > width * screenDelta || restricted) {
                 let data
-                ({ type, size, data } = await image.getResized(width))
+                ({ type, size, data } = await image.getResized(width, restricted))
                 const blob = new Blob([data])
                 stream = blob.stream()
+		if (restricted)
+		    action = ACTION_LOCKED
             } else {
                 stream = streamFile(path)
             }

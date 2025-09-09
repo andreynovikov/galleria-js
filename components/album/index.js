@@ -20,15 +20,13 @@ import ImageDescription from '@/components/image/description'
 
 import debounce from 'lodash.debounce'
 
-import lock from '@/assets/lock-password.svg'
-
 import 'react-photo-album/masonry.css'
 import 'yet-another-react-lightbox/styles.css'
 import './album.scss'
 import './lightbox.scss'
 
 import { log } from '@/lib/actions'
-import { ACTION_ZOOM, ACTION_THUMBNAIL, ACTION_INFO } from '@/lib/utils'
+import { ACTION_ZOOM, ACTION_THUMBNAIL, ACTION_LOCKED, ACTION_INFO } from '@/lib/utils'
 
 function scrollTo(id) {
     setTimeout(() => { // for some reason album is not ready on first render
@@ -104,7 +102,7 @@ function Album(props) {
 
     const handleImageLoad = async (event, photo) => {
         event.target.classList.add('lazyloaded')
-        log(photo.id, ACTION_THUMBNAIL, ip, user, meta)
+        log(photo.id, photo.restricted ? ACTION_LOCKED : ACTION_THUMBNAIL, ip, user, meta)
     }
 
     const handleDownload = () => {
@@ -114,10 +112,6 @@ function Album(props) {
             event_label: ids.join()
         })
         router.push(`/download?images=${ids.join()}`)
-    }
-
-    const handleContextMenu = (event) => {
-        event.preventDefault()
     }
 
     const thumbnails = photos.map(image => (
@@ -152,18 +146,12 @@ function Album(props) {
                         id={`thumbnail-${photo.id}`} />
                 ),
                 image: (props, { photo }) => (
-                    <>
-                        <LazyLoadImage
-                            {...props}
-                            className={`${props.className}${photo.restricted && user?.id === undefined ? ' restricted' : ''}`}
-                            scrollPosition={scrollPosition}
-                            threshold={0}
-                            onContextMenu={handleContextMenu}
-                            onLoad={(e) => handleImageLoad(e, photo)} />
-                        {photo.restricted && user?.id === undefined && (
-                            <Image src={lock} alt="" unoptimized onContextMenu={handleContextMenu} className="lock" />
-                        )}
-                    </>
+                    <LazyLoadImage
+                        {...props}
+                        className={props.className}
+                        scrollPosition={scrollPosition}
+                        threshold={0}
+                        onLoad={(e) => handleImageLoad(e, photo)} />
                 )
             }} />
         <Lightbox
@@ -208,14 +196,6 @@ function Album(props) {
                 buttonPrev: photos.length <= 1 ? () => null : undefined,
                 buttonNext: photos.length <= 1 ? () => null : undefined,
                 iconLoading: () => <GridLoader color="white" />,
-                slideContainer: ({ slide, children }) => (
-                    <div onContextMenu={handleContextMenu} className={`slide_container${slide.restricted && user?.id === undefined ? ' restricted' : ''}`}>
-                        {children}
-                        {slide.restricted && user?.id === undefined && (
-                            <Image src={lock} onClick={signIn} alt="" unoptimized onContextMenu={handleContextMenu} className="lock" />
-                        )}
-                    </div>
-                ),
                 slideFooter: ({ slide }) => <ImageDescription id={slide.id} className="image_description" />
             }}
             download={{
@@ -229,13 +209,6 @@ function Album(props) {
                 <button className="button" onClick={handleDownload}>Скачать все фотографии</button>
             </div>
         )}
-        <svg className="hiddenSvg">
-            <filter id="sharpBlur">
-                <feGaussianBlur stdDeviation="8"></feGaussianBlur>
-                <feColorMatrix type="matrix" values="1 0 0 0 0, 0 1 0 0 0, 0 0 1 0 0, 0 0 0 9 0"></feColorMatrix>
-                <feComposite in2="SourceGraphic" operator="in"></feComposite>
-            </filter>
-        </svg>
     </>
 }
 
