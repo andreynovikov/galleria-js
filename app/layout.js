@@ -1,4 +1,4 @@
-import GaInit from 'components/gallery/ga-init'
+import GaInit from '@/components/gallery/ga-init'
 
 import { Nunito } from 'next/font/google'
 

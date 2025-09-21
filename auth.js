@@ -1,7 +1,7 @@
 import NextAuth from 'next-auth'
 
-import { getUser } from 'lib/db'
-import { sendEvent } from 'lib/ga'
+import { getUser } from '@/lib/db'
+import { sendEvent } from '@/lib/ga'
 
 import authConfig from './auth.config'
 
