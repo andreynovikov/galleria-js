@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import Image from 'next/image'
 import { sendGAEvent } from '@next/third-parties/google'
 
 import { MasonryPhotoAlbum } from 'react-photo-album'
