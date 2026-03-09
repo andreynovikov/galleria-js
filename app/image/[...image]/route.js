@@ -29,8 +29,9 @@ function streamFile(path) {
     return ReadableStream.from(nodeStreamToIterator(nodeStream))
 }
 
-export async function GET(request, segmentData) {
-    const params = await segmentData.params
+export async function GET(request/*, segmentData*/) {
+    // const params = await segmentData.params
+    // const fileName = params.image.at(-1)
     const session = await auth()
     const ip = (request.headers.get('x-real-ip') ?? request.headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
     const format = request.nextUrl.searchParams.get('format')
@@ -39,7 +40,6 @@ export async function GET(request, segmentData) {
     const vertical = request.nextUrl.searchParams.get('constraint') === 'vertical'
     const force = request.nextUrl.searchParams.get('force') ?? false
     const image = Image.fromPath(request.nextUrl.pathname)
-    const fileName = params.image.at(-1)
     let path
     let stream
     let size

@@ -74,7 +74,7 @@ export default async function UserHistory(props) {
                                 {visitor.profile.id && (
                                     <>
                                         {visitor.profile.name && visitor.profile.email && <div className="profile">email: {visitor.profile.email}</div>}
-                                        {Object.entries(visitor.profile).filter(([k, v]) => !['name', 'email', 'image'].includes(k)).map(([k, v]) => (
+                                        {Object.entries(visitor.profile).filter(([k]) => !['name', 'email', 'image'].includes(k)).map(([k, v]) => (
                                             <div className="profile" key={k}>{k}: {v}</div>
                                         ))}
                                     </>
