@@ -4,20 +4,20 @@ import Top from '@/components/top'
 
 import { getTitle } from '@/lib/meta'
 
-export default async function Page(props) {
+export default async function Page(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
     const searchParams = await props.searchParams
     if (Object.keys(searchParams).length > 0)
         return <Gallery searchParams={searchParams} />
     else
         return (
-        <>
-            <Top />
-            <Selector />
-        </>
+            <>
+                <Top />
+                <Selector />
+            </>
         )
 }
 
-export async function generateMetadata(props) {
+export async function generateMetadata(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
     const searchParams = await props.searchParams
 
     if (Object.keys(searchParams).length > 0)
