@@ -10,6 +10,14 @@ const eslintConfig = [
         extends: ['next/core-web-vitals', 'next/typescript'],
         rules: {
             'react-hooks/exhaustive-deps': 'warn',
+            '@typescript-eslint/no-unused-expressions': [
+                'error',
+                {
+                    allowShortCircuit: true,
+                    allowTernary: true,
+                    allowTaggedTemplates: true,
+                },
+            ],
         },
     }),
 ]
