@@ -91,11 +91,17 @@ export async function GET(request: NextRequest) {
             status: 404
         })
 
-    if (!session?.user && process.env.RESTRICTED_LABELS !== undefined) {
-        const restrictedLabels = await getRestrictedLabels()
+    // Photos with restricted labels are blurred for anonymous visitors only
+    let hasRestrictedLabel = false
+    const restrictedLabels = await getRestrictedLabels()
+    if (restrictedLabels.length > 0) {
         const labels = await image.fetchLabels()
-        restricted = labels.some(label => restrictedLabels.includes(label.id))
+        hasRestrictedLabel = labels.some(label => restrictedLabels.includes(label.id))
+        restricted = hasRestrictedLabel && !session?.user
     }
+    // Restricted and censored photos are served differently depending on the visitor: shared caches must not
+    // store them, and browsers must not reuse them after signing in or out
+    const sessionDependent = hasRestrictedLabel || (image.censored ?? 0) > 0
 
     if (format === 'thumbnail') {
         ({ type, size, path } = await image.makeThumbnail(thumbnailSize, vertical, force, restricted))
@@ -151,7 +157,8 @@ export async function GET(request: NextRequest) {
         status: 200,
         headers: new Headers({
             'content-type': 'image/' + type,
-            'content-length': size + ''
+            'content-length': size + '',
+            ...(sessionDependent ? { 'cache-control': 'private', 'vary': 'Cookie' } : {})
         })
     })
 }

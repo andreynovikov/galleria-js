@@ -102,7 +102,7 @@ test.describe('signed-in visitor', () => {
         await page.goto(GEORGIA)
         await thumbnail(page, id).click()
         await expect(lightbox(page)).toBeVisible()
-        await expect(lightbox(page).locator('.yarl__slide_current img')).toHaveAttribute('src', `${GEORGIA}/IMG_0003.jpg?sid=e2e-user`)
+        await expect(lightbox(page).locator('.yarl__slide_current img')).toHaveAttribute('src', `${GEORGIA}/IMG_0003.jpg`)
     })
 
     test('sees photos allowed by censorship level', async ({ page }) => {

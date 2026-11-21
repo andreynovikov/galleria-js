@@ -10,7 +10,7 @@ test.describe('lightbox', () => {
 
         await expect(lightbox(page)).toBeVisible()
         await expect(page).toHaveURL(new RegExp(`#view-\\d+-${id}$`))
-        await expect(lightbox(page).locator('.yarl__slide_current img')).toHaveAttribute('src', `${GEORGIA}/IMG_0001.jpg?sid=`)
+        await expect(lightbox(page).locator('.yarl__slide_current img')).toHaveAttribute('src', `${GEORGIA}/IMG_0001.jpg`)
         await expect(description(page).locator('.title')).toHaveText('Вид на Омало')
         await expect(description(page).locator('.labels')).toHaveText('Горы, Омало')
         await expect(description(page).locator('.exif')).toHaveText('35mm, ISO 100, 1/250s, f/8')

@@ -119,6 +119,29 @@ test.describe('image URLs', () => {
                 await context.close()
             }
         })
+
+        test('is not cached by shared caches or across sign-in', async ({ request, browser }) => {
+            const context = await browser.newContext({ storageState: asUser })
+            try {
+                for (const client of [request, context.request]) {
+                    for (const query of ['', '?format=thumbnail&size=s']) {
+                        const response = await client.get(`${url}${query}`)
+                        expect(response.status(), query).toBe(200)
+                        expect(response.headers()['cache-control'], query).toBe('private')
+                        expect(response.headers()['vary'], query).toContain('Cookie')
+                    }
+                }
+            } finally {
+                await context.close()
+            }
+        })
+    })
+
+    test('of other photos do not depend on visitor', async ({ request }) => {
+        const response = await request.get(`${GEORGIA}/IMG_0001.jpg?format=thumbnail&size=s`)
+        expect(response.status()).toBe(200)
+        expect(response.headers()['cache-control'] ?? '').not.toContain('private')
+        expect(response.headers()['vary'] ?? '').not.toContain('Cookie')
     })
 })
 
@@ -151,6 +174,8 @@ test.describe('censored photo', () => {
             for (const query of formats) {
                 const response = await context.request.get(`${url}${query}`)
                 expect(response.status(), query).toBe(200)
+                expect(response.headers()['cache-control'], query).toBe('private')
+                expect(response.headers()['vary'], query).toContain('Cookie')
             }
         } finally {
             await context.close()

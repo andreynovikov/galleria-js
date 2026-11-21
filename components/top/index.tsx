@@ -11,14 +11,13 @@ export default async function Top() {
 
     const images = await getRandomImages(20, censorshipLevel(session))
 
-    const sid = session?.user?.id ?? ''
     const sizes = Object.keys(thumbnailWidths)
     const maxHeight = Object.values(thumbnailWidths).at(-1) as number
 
     const photos: SwiperPhoto[] = images.map(image => (
         {
             id: image.id,
-            src: `${basePath}${image.bundle}/${image.name}?format=thumbnail&size=${sizes.at(-1)}&constraint=vertical&sid=${sid}`,
+            src: `${basePath}${image.bundle}/${image.name}?format=thumbnail&size=${sizes.at(-1)}&constraint=vertical`,
             href: `${image.bundle}?opener=${image.id}`,
             title: image.name,
             height: maxHeight,
