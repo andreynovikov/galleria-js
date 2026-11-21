@@ -26,3 +26,12 @@ Last two examples are useful for blogging – photos can be inserted in text as 
 
 * Node.js
 * PostgreSQL
+
+## Tests
+
+End-to-end tests use Playwright and run on every push in GitHub Actions. To run them locally you need a PostgreSQL role that can create databases. The tests create and reset a separate database called `galleria_e2e`; set `E2E_PGDATABASE` to use another one.
+
+```sh
+npx playwright install chromium
+npm run test:e2e
+```

@@ -3,3 +3,7 @@
 .next/
 node_modules/
 tsconfig.tsbuildinfo
+/e2e/.data/
+/test-results/
+/playwright-report/
+/blob-report/

@@ -8,7 +8,9 @@
         "docker-build": "sudo docker compose build && sudo docker tag galleria galleria:$npm_package_version",
         "docker-deploy": "sudo docker compose up -d",
         "lint": "eslint .",
-        "typecheck": "next typegen && tsc --noEmit"
+        "typecheck": "next typegen && tsc --noEmit",
+        "test:e2e": "playwright test",
+        "test:e2e:photos": "node e2e/fixtures/generate-photos.mts"
     },
     "author": "Andrey Novikov",
     "license": "GPL-3.0",
@@ -41,6 +43,8 @@
         "yet-another-react-lightbox": "^3.33.1"
     },
     "devDependencies": {
+        "@next/env": "^16.4.6",
+        "@playwright/test": "^1.65.1",
         "@types/archiver": "^8.0.0",
         "@types/lodash.debounce": "^4.0.9",
         "@types/node": "^24.19.2",

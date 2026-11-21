@@ -50,6 +50,25 @@ export async function GET(request: NextRequest) {
     let action: number
     let restricted = false
 
+    // Check the file first: a missing file has no database record to look up labels for
+    path = join(process.env.PHOTOS_FOLDER as string, request.nextUrl.pathname)
+    try {
+        const stats = await stat(path)
+        size = stats.size
+        type = 'jpeg'
+    } catch (e) {
+        if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') {
+            return new Response('Not found', {
+                status: 404
+            })
+        } else {
+            console.log(e)
+            return new Response('Server error', {
+                status: 500
+            })
+        }
+    }
+
     if (!session?.user && process.env.RESTRICTED_LABELS !== undefined) {
         const restrictedLabels = await getRestrictedLabels()
         const labels = await image.fetchLabels()
@@ -61,23 +80,6 @@ export async function GET(request: NextRequest) {
         stream = streamFile(path)
         action = restricted ? ACTION_LOCKED : ACTION_THUMBNAIL
     } else {
-        path = join(process.env.PHOTOS_FOLDER as string, request.nextUrl.pathname)
-        try {
-            const stats = await stat(path)
-            size = stats.size
-            type = 'jpeg'
-        } catch (e) {
-            if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') {
-                return new Response('Not found', {
-                    status: 404
-                })
-            } else {
-                console.log(e)
-                return new Response('Server error', {
-                    status: 500
-                })
-            }
-        }
         if (format === 'original') {
             if (restricted)
                 return new Response('Forbidden', {

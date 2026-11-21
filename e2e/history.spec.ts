@@ -1,0 +1,37 @@
+import { expect, test } from '@playwright/test'
+
+import { GEORGIA, asAdmin, asUser } from './helpers'
+
+test.describe('history', () => {
+    test.use({ storageState: asAdmin })
+
+    test('shows visitor activity to admin', async ({ page, browser }, testInfo) => {
+        // Unique address per worker, so parallel tests do not see each other's views
+        const ip = `10.0.${Math.floor(testInfo.workerIndex / 250)}.${testInfo.workerIndex % 250 + 1}`
+
+        // Admin views are not logged
+        await page.request.get(`${GEORGIA}/IMG_0001.jpg`, { headers: { 'x-real-ip': ip } })
+
+        const visitor = await browser.newContext({ storageState: asUser, extraHTTPHeaders: { 'x-real-ip': ip } })
+        try {
+            const response = await visitor.request.get(`${GEORGIA}/IMG_0002.jpg`)
+            expect(response.status()).toBe(200)
+        } finally {
+            await visitor.close()
+        }
+
+        // Log is written after the response is sent
+        const entry = page.getByRole('link', { name: new RegExp(`^${ip.replaceAll('.', '\\.')}\\b`) })
+        await expect(async () => {
+            await page.goto('/history')
+            await expect(entry).toBeVisible({ timeout: 1000 })
+        }).toPass()
+        await expect(entry).toHaveText(`${ip} - E2E User`)
+
+        await entry.click()
+        await expect(page).toHaveURL(new RegExp(`/history/${ip.replaceAll('.', '\\.')}/\\d{4}-\\d{2}-\\d{2}`))
+        await expect(page.locator('h2')).toContainText('E2E User')
+        await expect(page.locator(`a[href="${GEORGIA}/IMG_0002.jpg"]`)).toBeVisible()
+        await expect(page.locator(`a[href="${GEORGIA}/IMG_0001.jpg"]`)).toHaveCount(0)
+    })
+})

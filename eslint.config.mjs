@@ -9,6 +9,10 @@ const eslintConfig = defineConfig([
         '.next/**',
         '.docker/**',
         'next-env.d.ts',
+        'e2e/.data/**',
+        'playwright-report/**',
+        'test-results/**',
+        'blob-report/**',
     ]),
     {
         rules: {
