@@ -101,9 +101,6 @@ export default async function globalSetup() {
     await rm(dataDir, { recursive: true, force: true })
     await cp(join(fixturesFolder, 'photos'), photosFolder, { recursive: true })
 
-    // Label maps are cached with unstable_cache, which survives server restarts
-    await rm(join(root, '.next', 'cache', 'fetch-cache'), { recursive: true, force: true })
-
     await createDatabase()
     await resetSchema()
     await syncBundles()

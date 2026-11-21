@@ -45,7 +45,8 @@ export const env: Record<string, string> = {
     TZ: 'UTC', // the same as in Docker, timestamps are stored as UTC wall-clock time
     PGDATABASE: process.env.E2E_PGDATABASE ?? 'galleria_e2e',
     PHOTOS_FOLDER: photosFolder,
-    RESTRICTED_LABELS: 'Private',
+    // No photo has `Secret` until e2e/sync.spec.ts adds one
+    RESTRICTED_LABELS: 'Private,Secret',
     ADMIN_ID: users.admin.id,
     // Test-only secret, random enough to not trigger Better Auth entropy warning
     AUTH_SECRET: 'e2e-7f3c9a1d5b8e2f6a0c4d9b7e1a3f5c8d2b6e0a4f',

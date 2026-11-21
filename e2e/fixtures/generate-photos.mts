@@ -97,6 +97,16 @@ const fixtures: Fixture[] = [
         height: 1067,
         date: '2021:03:04 05:06:07',
         caption: 'Обновлённое описание'
+    },
+    {
+        // Not part of the archive: its label is restricted, but does not exist until e2e/sync.spec.ts adds the photo
+        path: 'extra/secret.jpg',
+        text: 'Secret',
+        colors: ['#232526', '#414345'],
+        width: 1600,
+        height: 1067,
+        date: '2022:02:02 02:02:02',
+        keywords: ['Secret']
     }
 ]
 

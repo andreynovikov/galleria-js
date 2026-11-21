@@ -1,5 +1,3 @@
-import { unstable_cache } from 'next/cache'
-
 import postgres, { type Fragment, type Sql } from 'postgres'
 
 type JSONValue = postgres.JSONValue
@@ -129,31 +127,40 @@ export interface UserLogImage {
     day?: Date
 }
 
-async function getUncachedLabelMaps() {
-    console.log('getUncachedLabelMaps')
-    const labels = await listLabels()
-    const labelIds: Record<string, number> = {}
-    labels.forEach(item => labelIds[item.name] = item.id)
-    return labelIds
-}
+const restrictedLabels = process.env.RESTRICTED_LABELS?.split(',') ?? []
 
-async function getUncachedRestictedLabels() {
-    console.log('getUncachedRestictedLabels')
-    const restricted = process.env.RESTRICTED_LABELS
-    if (restricted !== undefined) {
-        const labelIds = await getUncachedLabelMaps()
-        const labels = restricted.split(',').map(l => {
-            if (isNaN(+l))
-                return labelIds[l] ?? 0
-            return +l
-        }).filter(l => l > 0)
-        return labels.filter((e, i, a) => a.indexOf(e) == i)
+/** Resolves label ids and names (as given in `-filt.labels` or RESTRICTED_LABELS) to ids, unknown names are left out */
+export async function resolveLabels(values: string[]) {
+    const ids = values.filter(value => !isNaN(+value)).map(Number)
+    const names = values.filter(value => isNaN(+value))
+    if (names.length > 0) {
+        const rows = await sql<{ id: number }[]>`
+          SELECT id FROM label
+          WHERE name IN ${sql(names)}
+        `
+        ids.push(...rows.map(row => row.id))
     }
-    return []
+    return [...new Set(ids.filter(id => Number.isInteger(id) && id > 0))]
 }
 
-export const getLabelMaps = unstable_cache(getUncachedLabelMaps)
-export const getRestrictedLabels = unstable_cache(getUncachedRestictedLabels)
+/**
+ * Ids of RESTRICTED_LABELS. They are looked up on every call (by the unique name index): album sync creates and
+ * deletes labels, so the ids change, and a stale list would show restricted photos unblurred.
+ */
+export async function getRestrictedLabels() {
+    return restrictedLabels.length > 0 ? await resolveLabels(restrictedLabels) : []
+}
+
+/** Names of labels by id */
+export async function getLabelNames(ids: number[]) {
+    if (ids.length === 0)
+        return {}
+    const rows = await sql<Label[]>`
+      SELECT id, name FROM label
+      WHERE id IN ${sql(ids)}
+    `
+    return Object.fromEntries(rows.map(row => [String(row.id), row.name]))
+}
 
 // helpers (https://github.com/porsager/postgres/discussions/529)
 const and = (arr: Fragment[]) => arr.reduce((acc, x) => sql`${acc} AND ${x}`)
@@ -424,19 +431,21 @@ export async function setImageLabels(id: number, labels: number[]) {
 export async function getLabelIds(labels: string[]) {
     const ids: number[] = []
     for (const label of labels) {
-        let result = await sql<{ id: number }[]>`
-          SELECT
-            id
-          FROM label
+        const find = () => sql<{ id: number }[]>`
+          SELECT id FROM label
           WHERE name = ${label}
         `
-        if (result.length == 0) {
+        let result = await find()
+        if (result.length === 0)
             result = await sql<{ id: number }[]>`
               INSERT INTO label (name)
               VALUES (${label})
+              ON CONFLICT (name) DO NOTHING
               RETURNING id
             `
-        }
+        // Albums can be synced concurrently, the label may have been created after the lookup
+        if (result.length === 0)
+            result = await find()
         ids.push(result[0].id)
     }
     return ids

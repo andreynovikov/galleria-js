@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 
 import { fixturesFolder, photosFolder } from './env'
-import { ARMENIA, description, imageId, thumbnail, thumbnails } from './helpers'
+import { ARMENIA, GEORGIA, description, imageId, thumbnail, thumbnails } from './helpers'
 
 test.describe('album sync', () => {
     test('picks up added, changed and removed files', async ({ page }, testInfo) => {
@@ -44,5 +44,29 @@ test.describe('album sync', () => {
 
         const response = await page.goto(bundle)
         expect(response?.status()).toBe(404)
+    })
+
+    test('restricts photos with a restricted label which sync creates', async ({ page, request }, testInfo) => {
+        const bundle = `/secret-${testInfo.project.name}-${testInfo.repeatEachIndex}`
+        const folder = join(photosFolder, bundle)
+        const file = join(folder, 'a.jpg')
+
+        await rm(folder, { recursive: true, force: true })
+        await mkdir(folder)
+        try {
+            // Restricted labels are resolved before the `Secret` label exists
+            expect((await request.get(`${GEORGIA}/IMG_0003.jpg?format=original`)).status()).toBe(403)
+
+            await copyFile(join(fixturesFolder, 'extra', 'secret.jpg'), file)
+            await page.goto(bundle)
+            await expect(thumbnails(page)).toHaveCount(1)
+            expect((await request.get(`${bundle}/a.jpg?format=original`)).status()).toBe(403)
+
+            await rm(file)
+            await page.reload()
+            await expect(page.getByRole('img', { name: 'Nothing found' })).toBeVisible()
+        } finally {
+            await rm(folder, { recursive: true, force: true })
+        }
     })
 })

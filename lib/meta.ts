@@ -1,14 +1,14 @@
 import moment from 'moment'
-import { getLabelMaps } from '@/lib/db'
+import { getLabelNames } from '@/lib/db'
 import { param, type SearchParams } from '@/lib/utils'
 
 export async function getTitle(conditions: string[], searchParams: SearchParams) {
     if (Object.keys(searchParams).length > 0) {
         const labels = param(searchParams, '-filt.labels')
         if (labels !== undefined) {
-            const labelIds = await getLabelMaps()
-            const labelNames = Object.fromEntries(Object.entries(labelIds).map(([k, v]) => [v, k]))
-            const names = labels.split(',').map(l => labelNames[l] ?? l)
+            const values = labels.split(',')
+            const labelNames = await getLabelNames(values.map(Number).filter(id => Number.isInteger(id) && id > 0))
+            const names = values.map(l => labelNames[l] ?? l)
             conditions.push(names.length > 1 ? 'с тегами' : 'с тегом')
             conditions.push(names.join(', '))
         }

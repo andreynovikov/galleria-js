@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Album, { type AlbumPhoto } from '@/components/album'
 import NothingFound from './nothing-found'
 
-import { getLabelMaps, listImages } from '@/lib/db'
+import { listImages, resolveLabels } from '@/lib/db'
 import { thumbnailWidths } from '@/lib/image'
 import { syncBundle } from '@/lib/images'
 import { bool, clientIp, param, uaMeta, type SearchParams } from '@/lib/utils'
@@ -33,13 +33,9 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
     const header = await headers()
     const meta = uaMeta(header)
     const ip = clientIp(header)
-    const labelIds = await getLabelMaps()
 
-    const labels = param(searchParams, '-filt.labels')?.split(',').map(l => {
-        if (isNaN(+l))
-            return labelIds[l] ?? 0
-        return +l
-    }).filter(l => l > 0)
+    const labelsParam = param(searchParams, '-filt.labels')
+    const labels = labelsParam !== undefined ? await resolveLabels(labelsParam.split(',')) : undefined
     const notlabels = param(searchParams, '-filt.notlabels')?.split(',').map(Number).filter(l => l > 0)
     const from = parseDate(param(searchParams, '-filt.from'))
     const till = parseDate(param(searchParams, '-filt.till'))
