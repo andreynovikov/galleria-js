@@ -10,7 +10,7 @@ import { FreeMode } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/free-mode'
 
-import styles from './swiper.module.scss'
+import styles from './swiper.module.css'
 
 import { log } from '@/lib/actions'
 import type { LogMeta, VisitorRef } from '@/lib/db'

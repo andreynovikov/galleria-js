@@ -8,7 +8,7 @@ import { TagCloud, type ColorOptions, type Tag } from 'react-tagcloud'
 import { getRelatedLabels } from '@/lib/actions'
 import type { LabelCount } from '@/lib/db'
 
-import './label-cloud.scss'
+import './label-cloud.css'
 
 const options: ColorOptions = {
     luminosity: 'dark',

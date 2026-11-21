@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 
 import { createAuthClient } from 'better-auth/client'
 
-import styles from './signin.module.scss'
+import styles from './signin.module.css'
 
 interface SignInProps {
     providers: { id: string, name: string }[]

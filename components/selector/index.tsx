@@ -4,7 +4,7 @@ import LabelCloud from '@/components/labels'
 
 import { listLabels } from '@/lib/db'
 
-import styles from './selector.module.scss'
+import styles from './selector.module.css'
 
 export default async function Selector() {
     const labels = await listLabels()

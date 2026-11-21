@@ -21,8 +21,8 @@ import debounce from 'lodash.debounce'
 
 import 'react-photo-album/masonry.css'
 import 'yet-another-react-lightbox/styles.css'
-import './album.scss'
-import './lightbox.scss'
+import './album.css'
+import './lightbox.css'
 
 import { log } from '@/lib/actions'
 import type { LogMeta, VisitorRef } from '@/lib/db'

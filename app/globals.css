@@ -37,7 +37,8 @@ footer {
     text-align: center;
 }
 
-button.button { // Use class to distinguish real buttons from album photos
+/* Use class to distinguish real buttons from album photos */
+button.button {
     background-color: #fff;
     border: 1px solid #ccc;
     border-radius: .5rem;
@@ -57,9 +58,11 @@ button.button { // Use class to distinguish real buttons from album photos
 }
 
 .hiddenSvg {
-    // If you use `display: none`, Firefox isn’t able to reference the filter inside the SVG. This avoids
-    // the issue by using using .visuallyHidden from the HTML5 Boilerplate.
-    // -> https://github.com/h5bp/html5-boilerplate/blob/master/src/css/main.css#L119-L133
+    /*
+     * If you use `display: none`, Firefox isn’t able to reference the filter inside the SVG. This avoids
+     * the issue by using .visuallyHidden from the HTML5 Boilerplate.
+     * -> https://github.com/h5bp/html5-boilerplate/blob/master/src/css/main.css#L119-L133
+     */
     border: 0;
     clip: rect(0 0 0 0);
     height: 1px;

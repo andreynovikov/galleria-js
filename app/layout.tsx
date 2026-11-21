@@ -8,7 +8,7 @@ const nunito = Nunito({
 })
 
 import 'modern-normalize/modern-normalize.css'
-import './globals.scss'
+import './globals.css'
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
     return (

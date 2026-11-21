@@ -55,7 +55,6 @@
         "@types/utf8": "^3.0.3",
         "eslint": "^9.39.5",
         "eslint-config-next": "^16.4.6",
-        "sass": "^1.108.2",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.73.0"
     }

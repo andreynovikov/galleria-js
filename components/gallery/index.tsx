@@ -12,7 +12,7 @@ import { bool, clientIp, param, uaMeta, type SearchParams } from '@/lib/utils'
 import { getSession } from '@/auth'
 
 import GaEvent from './ga-event'
-import styles from './gallery.module.scss'
+import styles from './gallery.module.css'
 
 const basePath = process.env.BASE_PATH ?? ''
 

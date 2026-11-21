@@ -1,7 +1,7 @@
 import { listBundles } from '@/lib/db'
 import Link from 'next/link'
 
-import styles from './list.module.scss'
+import styles from './list.module.css'
 
 /*
 https://ru.stackoverflow.com/questions/1529963/
