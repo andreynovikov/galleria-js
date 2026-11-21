@@ -1,3 +1,5 @@
+[![CI](https://github.com/andreynovikov/galleria-js/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/andreynovikov/galleria-js/actions/workflows/ci.yml)
+
 ## Introduction
 
 Galleria is a responsive and mobile friendly web application designed for presentation and management of self-hosted photo archive. The main ideas behind it are:
