@@ -1,22 +1,23 @@
 import moment from 'moment'
 import { getLabelMaps } from '@/lib/db'
+import { param, type SearchParams } from '@/lib/utils'
 
-export async function getTitle(conditions, searchParams) {
+export async function getTitle(conditions: string[], searchParams: SearchParams) {
     if (Object.keys(searchParams).length > 0) {
-        let labels = searchParams['-filt.labels']
+        const labels = param(searchParams, '-filt.labels')
         if (labels !== undefined) {
             const labelIds = await getLabelMaps()
             const labelNames = Object.fromEntries(Object.entries(labelIds).map(([k, v]) => [v, k]))
-            labels = labels.split(',').map(l => labelNames[l] ?? l)
-            conditions.push(labels.length > 1 ? 'с тегами' : 'с тегом')
-            conditions.push(labels.join(', '))
+            const names = labels.split(',').map(l => labelNames[l] ?? l)
+            conditions.push(names.length > 1 ? 'с тегами' : 'с тегом')
+            conditions.push(names.join(', '))
         }
-        let from = searchParams['-filt.from']
+        const from = param(searchParams, '-filt.from')
         if (from !== undefined) {
             conditions.push('после')
             conditions.push(moment(from).format('LLL'))
         }
-        let till = searchParams['-filt.till']
+        const till = param(searchParams, '-filt.till')
         if (till !== undefined) {
             conditions.push('до')
             conditions.push(moment(till).format('LLL'))

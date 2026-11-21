@@ -3,9 +3,13 @@
 import { useEffect } from 'react'
 import { sendGAEvent } from '@next/third-parties/google'
 
-export default function GaEvent(props) {
-    const { event, label, value } = props
+interface GaEventProps {
+    event: string
+    label: string
+    value?: number
+}
 
+export default function GaEvent({ event, label, value }: GaEventProps) {
     useEffect(() => {
         setTimeout(() => { // data layer is not yet initialized on first page load
             sendGAEvent('event', event, {

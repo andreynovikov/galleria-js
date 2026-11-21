@@ -14,13 +14,14 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
             return token
         },
         session({ session, token }) {
-            session.user = { ...session.user, ...token.visitor }
+            // Visitor fields come from the database and do not conform to AdapterUser (e.g. email may be null)
+            session.user = { ...session.user, ...token.visitor } as typeof session.user
             return session
         }
     },
     events: {
         async signIn({ account }) {
-            await sendEvent('login', { 'method': account.provider })
+            await sendEvent('login', { 'method': account?.provider })
         }
     }
 })

@@ -4,9 +4,11 @@ import { useEffect } from 'react'
 import { GoogleAnalytics } from '@next/third-parties/google'
 import { setCookie } from 'cookies-next/client'
 
-export default function GaInit(props) {
-    const { gaId } = props
+declare global {
+    function gtag(command: 'get', targetId: string, fieldName: string, callback: (value: string) => void): void
+}
 
+export default function GaInit({ gaId }: { gaId: string }) {
     useEffect(() => {
         if (typeof gtag !== 'function')
             return

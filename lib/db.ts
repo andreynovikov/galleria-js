@@ -1,8 +1,14 @@
 import { unstable_cache } from 'next/cache'
 
-import postgres from 'postgres'
+import postgres, { type Fragment, type Sql } from 'postgres'
 
-let sql
+type JSONValue = postgres.JSONValue
+
+declare global {
+    var __postgresSqlClient: Sql | undefined
+}
+
+let sql: Sql
 
 if (process.env.NODE_ENV === 'production') {
     sql = postgres()
@@ -15,51 +21,156 @@ if (process.env.NODE_ENV === 'production') {
 
 const adminIds = process.env.ADMIN_ID?.split(',') ?? []
 
+export interface ImageRecord {
+    id: number
+    name: string
+    bundle: string
+    width: number
+    height: number
+    orientation: number
+    stime: Date | null
+    author: number | null
+    description: string | null
+    lat6: number | null
+    lon6: number | null
+    ctime: Date | null
+    mtime: Date | null
+    starred: number
+    exportable: boolean
+    censored: number
+}
+
+export type ImageUpdate = Partial<Pick<ImageRecord, 'width' | 'height' | 'orientation' | 'description' | 'stime'>>
+
+export interface Label {
+    id: number
+    name: string
+}
+
+export interface LabelCount extends Label {
+    count: number
+}
+
+export interface Bundle {
+    path: string
+    count: string // bigint is returned as string
+}
+
+export interface ListedImage {
+    id: number
+    name: string
+    bundle: string
+    description?: string | null
+    width: number
+    height: number
+    restricted?: boolean
+}
+
+export interface ImageFilters {
+    bundle?: string
+    from?: Date
+    till?: Date
+    labels?: number[]
+    notlabels?: number[]
+    censored?: number
+}
+
+export interface Visitor {
+    id: string
+    provider: string
+    censorship: number
+    name?: string | null
+    email?: string | null
+    image?: string | null
+}
+
+/** Identifies (possibly anonymous) visitor in logs */
+export interface VisitorRef {
+    id?: string | null
+    provider?: string | null
+}
+
+export type LogMeta = { [key: string]: JSONValue | undefined }
+
+export interface LogFilters {
+    from?: Date
+    label?: string
+    status?: string
+}
+
+export interface LogUser {
+    ip: string
+    day: Date
+    count: string // bigint is returned as string
+    visitors: { name?: string | null, email?: string | null }[]
+    meta: { browser?: { name?: string, major?: string, type?: string }, device?: { vendor?: string, model?: string, type?: string }, ua?: string }[]
+}
+
+export interface UserLogFilters {
+    ip: string
+    day?: string
+    label?: string
+    status?: string
+}
+
+export interface UserLogImage {
+    id: number
+    bundle: string
+    name: string
+    width: number
+    height: number
+    status: number
+    last_time: Date
+    visitor_id: string | null
+    visitor_provider: string | null
+    visitor: { name?: string, email?: string, image?: string, [key: string]: unknown } | null
+    meta: ({ zoom?: number } | null)[]
+    day?: Date
+}
+
 async function getUncachedLabelMaps() {
     console.log('getUncachedLabelMaps')
     const labels = await listLabels()
-    const labelIds = {}
+    const labelIds: Record<string, number> = {}
     labels.forEach(item => labelIds[item.name] = item.id)
     return labelIds
 }
 
 async function getUncachedRestictedLabels() {
-  console.log('getUncachedRestictedLabels')
-  let labels = process.env.RESTRICTED_LABELS
-  if (labels !== undefined) {
-      const labelIds = await getUncachedLabelMaps()
-      labels = labels.split(',').map(l => {
-          if (isNaN(l))
-              l = labelIds[l] ?? 0
-          return +l 
-      }).filter(l => l > 0)
-      return labels.filter((e, i, a) => a.indexOf(e) == i)
-  }
-  return []
+    console.log('getUncachedRestictedLabels')
+    const restricted = process.env.RESTRICTED_LABELS
+    if (restricted !== undefined) {
+        const labelIds = await getUncachedLabelMaps()
+        const labels = restricted.split(',').map(l => {
+            if (isNaN(+l))
+                return labelIds[l] ?? 0
+            return +l
+        }).filter(l => l > 0)
+        return labels.filter((e, i, a) => a.indexOf(e) == i)
+    }
+    return []
 }
 
 export const getLabelMaps = unstable_cache(getUncachedLabelMaps)
 export const getRestrictedLabels = unstable_cache(getUncachedRestictedLabels)
 
 // helpers (https://github.com/porsager/postgres/discussions/529)
-const and = arr => arr.reduce((acc, x) => sql`${acc} AND ${x}`)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const or = arr => arr.reduce((acc, x) => sql`(${acc} OR ${x})`)
+const and = (arr: Fragment[]) => arr.reduce((acc, x) => sql`${acc} AND ${x}`)
 
 export async function listBundles() {
-    const bundles = await sql`
+    const bundles = await sql<Bundle[]>`
       SELECT
         bundle AS path,
         COUNT(id) AS count
       FROM image
       GROUP BY bundle
-      ORDER BY path    
+      ORDER BY path
     `
     return bundles
 }
 
 export async function listLabels() {
-    const labels = await sql`
+    const labels = await sql<LabelCount[]>`
       SELECT
         id,
         name,
@@ -73,8 +184,8 @@ export async function listLabels() {
     return labels
 }
 
-export async function listRelatedLabels(include, exclude) {
-    const having = []
+export async function listRelatedLabels(include: number[], exclude: number[]) {
+    const having: Fragment[] = []
     if (include.length > 0)
         having.push(...include.map(label => sql`SUM(CASE WHEN label=${label} THEN 1 ELSE 0 END) > 0`))
     if (exclude.length > 0)
@@ -83,15 +194,15 @@ export async function listRelatedLabels(include, exclude) {
     if (having.length === 0)
         return [] // never output all labels
 
-    const selected = [].concat(include, exclude)
+    const selected = [...include, ...exclude]
 
-    const labels = await sql`
+    const labels = await sql<LabelCount[]>`
       WITH label_count AS (
         SELECT image FROM label_image
         GROUP BY image
         HAVING ${and(having)}
       )
-      SELECT id, name, COUNT(image) AS count FROM label
+      SELECT id, name, COUNT(image)::int AS count FROM label
       JOIN label_image ON id = label
       WHERE
         label NOT IN ${sql(selected)}
@@ -107,7 +218,7 @@ export async function listRelatedLabels(include, exclude) {
     return labels
 }
 
-export async function listImages(filters, order) {
+export async function listImages(filters: ImageFilters, order: string) {
     const restrictedLabels = await getRestrictedLabels()
 
     const where = [sql`width > 0`] // list only images with width, otherwise ReactPhotoAlbum gets broken
@@ -120,10 +231,10 @@ export async function listImages(filters, order) {
     if (filters.till)
         where.push(sql`stime <= ${filters.till}`)
 
-    const labels = []
-    if (filters.labels?.length > 0)
+    const labels: Fragment[] = []
+    if (filters.labels && filters.labels.length > 0)
         labels.push(...filters.labels.map(label => sql`SUM(CASE WHEN label=${label} THEN 1 ELSE 0 END) > 0`))
-    if (filters.notlabels?.length > 0)
+    if (filters.notlabels && filters.notlabels.length > 0)
         labels.push(...filters.notlabels.map(label => sql`SUM(CASE WHEN label=${label} THEN 1 ELSE 0 END) = 0`))
 
     if (labels.length > 0)
@@ -147,7 +258,7 @@ export async function listImages(filters, order) {
         group = sql`GROUP BY id`
     }
 
-    const images = await sql`
+    const images = await sql<ListedImage[]>`
       SELECT
         id,
         name,
@@ -156,7 +267,7 @@ export async function listImages(filters, order) {
         width,
         height
       ${restrictedLabels.length > 0 ? sql`,
-        array_agg(label_image.label) && ${restrictedLabels} AS restricted
+        array_agg(label_image.label) && ${restrictedLabels}::int[] AS restricted
       ` : sql``}
       FROM image
       ${join}
@@ -170,8 +281,8 @@ export async function listImages(filters, order) {
     return images
 }
 
-export async function getBundleImages(bundle) {
-    const images = await sql`
+export async function getBundleImages(bundle: string) {
+    const images = await sql<Pick<ImageRecord, 'id' | 'name'>[]>`
       SELECT
         id,
         name
@@ -181,11 +292,11 @@ export async function getBundleImages(bundle) {
     return images
 }
 
-export async function getRandomImages(limit) {
+export async function getRandomImages(limit: number) {
     const restrictedLabels = await getRestrictedLabels()
     const hasRestricted = restrictedLabels.length > 0
 
-    const images = await sql`
+    const images = await sql<ListedImage[]>`
       WITH params AS (
         SELECT
           min(id) AS min_id,
@@ -199,11 +310,11 @@ export async function getRandomImages(limit) {
         width,
         height
         ${hasRestricted ? sql`,
-        array_agg(label_image.label) && ${restrictedLabels} AS restricted
+        array_agg(label_image.label) && ${restrictedLabels}::int[] AS restricted
         ` : sql``}
       FROM (
         SELECT p.min_id + trunc(random() * p.id_span)::integer AS id
-        FROM params p, generate_series(1, ${limit * 1.2 - 9}) g
+        FROM params p, generate_series(1, ${Math.round(limit * 1.2 - 9)}) g
         GROUP BY 1
         UNION
         SELECT id FROM (VALUES (2796), (192), (2738), (654), (3145), (1673), (605), (1480), (2644)) AS ids(id)
@@ -222,60 +333,60 @@ export async function getRandomImages(limit) {
     return images
 }
 
-export async function getImageById(id) {
-    const result = await sql`
+export async function getImageById(id: number) {
+    const result = await sql<ImageRecord[]>`
       SELECT * FROM image
       WHERE id = ${id}
     `
-    return result[0]
+    return result.at(0)
 }
 
-export async function getImageByName(bundle, name) {
-    const result = await sql`
+export async function getImageByName(bundle: string, name: string) {
+    const result = await sql<ImageRecord[]>`
       SELECT * FROM image
       WHERE bundle = ${bundle} AND name = ${name}
     `
-    return result[0]
+    return result.at(0)
 }
 
-export async function addImage(bundle, name) {
+export async function addImage(bundle: string, name: string) {
     const ctime = new Date()
     const image = { bundle, name, ctime: ctime.toISOString() }
-    const result = await sql`
+    const result = await sql<{ id: number }[]>`
       INSERT INTO image ${sql(image)}
       RETURNING id
     `
     return { id: result[0].id, ctime }
 }
 
-export async function updateImage(id, data) {
+export async function updateImage(id: number, data: ImageUpdate) {
     await sql`
       UPDATE image SET ${sql(data)}
       WHERE id = ${id}
     `
 }
 
-export async function deleteImage(id) {
-    // Other tables are cascaded via DB constraint 
+export async function deleteImage(id: number) {
+    // Other tables are cascaded via DB constraint
     await sql`
       DELETE FROM image
       WHERE id = ${id}
     `
 }
 
-export async function getImageLabels(id) {
-    const labels = await sql`
+export async function getImageLabels(id: number) {
+    const labels = await sql<Label[]>`
       SELECT id, name FROM label
       INNER JOIN label_image ON (id = label AND image = ${id})
     `
     return labels
 }
 
-export async function setImageLabels(id, labels) {
-    const current = (await sql`
+export async function setImageLabels(id: number, labels: number[]) {
+    const current = (await sql<{ label: number }[]>`
       SELECT label FROM label_image
       WHERE image = ${id}
-    `.values()).map(r => r[0])
+    `).map(r => r.label)
     const toBeAdded = labels.filter(l => !current.includes(l))
     const toBeDeleted = current.filter(l => !labels.includes(l))
     await sql.begin(async sql => {
@@ -296,36 +407,35 @@ export async function setImageLabels(id, labels) {
               WHERE image = ${id} AND label in ${sql(toBeDeleted)}
             `
             // If label is not used anymore, delete it permanently
-            await sql`
+            const unused = await sql<{ id: number }[]>`
               SELECT
-                id,
-                COUNT(image)
+                id
               FROM label
               LEFT JOIN label_image ON (id = label)
               WHERE id IN ${sql(toBeDeleted)}
               GROUP BY id
               HAVING COUNT(image) = 0
-            `.forEach(async (row) => {
+            `
+            if (unused.length > 0)
                 await sql`
                   DELETE FROM label
-                  WHERE id = ${row.id}
+                  WHERE id IN ${sql(unused.map(row => row.id))}
                 `
-            })
         }
     })
 }
 
-export async function getLabelIds(labels) {
-    const ids = []
+export async function getLabelIds(labels: string[]) {
+    const ids: number[] = []
     for (const label of labels) {
-        let result = await sql`
+        let result = await sql<{ id: number }[]>`
           SELECT
             id
           FROM label
           WHERE name = ${label}
         `
         if (result.length == 0) {
-            result = await sql`
+            result = await sql<{ id: number }[]>`
               INSERT INTO label (name)
               VALUES (${label})
               RETURNING id
@@ -336,27 +446,26 @@ export async function getLabelIds(labels) {
     return ids
 }
 
-export async function getUser(id, provider, userData) {
-    const data = { ...userData }
+export async function getUser(id: string, provider: string, userData: object): Promise<Visitor> {
+    const data: Record<string, JSONValue | undefined> = { ...userData }
     delete data['id'] // drop dynamic user id
     const censorship = 1
-    const result = await sql`
-      INSERT INTO visitor ${sql({id, provider, censorship, data})}
+    const result = await sql<(Omit<Visitor, 'name' | 'email' | 'image'> & { data: Record<string, JSONValue> })[]>`
+      INSERT INTO visitor ${sql({ id, provider, censorship, data: sql.json(data) })}
       ON CONFLICT (id, provider) DO UPDATE SET
       (data) = ROW(EXCLUDED.data)
       RETURNING *
     `
 
-    const user = {
-        ...result[0].data,
-        ...result[0]
+    const { data: profile, ...visitor } = result[0]
+    return {
+        ...profile,
+        ...visitor
     }
-    delete user['data']
-    return user
 }
 
-export async function writeLog(image, status, ip, visitor, meta=null) {
-    if (visitor?.id !== undefined && adminIds.includes(visitor.id))
+export async function writeLog(image: number, status: number, ip: string, visitor?: VisitorRef | null, meta: LogMeta | null = null) {
+    if (visitor?.id && adminIds.includes(visitor.id))
         return
     const entry = {
         image,
@@ -365,13 +474,13 @@ export async function writeLog(image, status, ip, visitor, meta=null) {
         visitor_id: visitor?.id ?? null,
         visitor_provider: visitor?.provider ?? null,
         ctime: new Date(),
-        meta
+        meta: meta === null ? null : sql.json(meta)
     }
     await sql`INSERT INTO log ${sql(entry)}`
 }
 
-export async function getLogUsers(filters) {
-    const where = []
+export async function getLogUsers(filters: LogFilters) {
+    const where: Fragment[] = []
 
     if (filters.from)
         where.push(sql`ctime >= ${filters.from}`)
@@ -381,9 +490,9 @@ export async function getLogUsers(filters) {
 
     if (filters.status)
         where.push(sql`status <= ${filters.status}`)
-    
+
     // Switch to json_object('browser': meta->'browser', 'device': meta->'device') in PostgreSQL 16
-    const users = await sql`
+    const users = await sql<LogUser[]>`
       SELECT
         ip,
         ctime::date AS day,
@@ -402,54 +511,54 @@ export async function getLogUsers(filters) {
       INNER JOIN label_image ON (log.image = label_image.image)
       ` : sql``}
       LEFT JOIN visitor ON (log.visitor_id = visitor.id AND log.visitor_provider = visitor.provider)
-      WHERE ${and(where)}
+      ${where.length > 0 ? sql`WHERE ${and(where)}` : sql``}
       GROUP BY ip, day
       ORDER BY day DESC
     `
     return users
 }
 
-export async function getUserLog(filters) {
-  const where = [sql`ip = ${filters.ip}`]
-  const group = ['image.id', 'visitor_id', 'visitor_provider']
-  let day = sql``
+export async function getUserLog(filters: UserLogFilters) {
+    const where = [sql`ip = ${filters.ip}`]
+    const group = ['image.id', 'visitor_id', 'visitor_provider']
+    let day = sql``
 
-  if (filters.day) {
-      where.push(sql`date(log.ctime) = ${filters.day}`)
-  } else {
-      day = sql`, log.ctime::date AS day`
-      group.push('day')
-  }
+    if (filters.day) {
+        where.push(sql`date(log.ctime) = ${filters.day}`)
+    } else {
+        day = sql`, log.ctime::date AS day`
+        group.push('day')
+    }
 
-  if (filters.label)
-      where.push(sql`label = ${filters.label}`)
+    if (filters.label)
+        where.push(sql`label = ${filters.label}`)
 
-  if (filters.status)
-      where.push(sql`status <= ${filters.status}`)
+    if (filters.status)
+        where.push(sql`status <= ${filters.status}`)
 
-  const images = await sql`
-    SELECT
-      image.id AS id,
-      bundle,
-      name,
-      width,
-      height,
-      MIN(status) AS status,
-      MAX(log.ctime) AS last_time,
-      visitor_id,
-      visitor_provider,
-      (array_agg(visitor.data))[1] AS visitor,
-      jsonb_agg(DISTINCT meta) AS meta
-      ${day}
-    FROM log
-    INNER JOIN image ON (log.image = id)
-    ${filters.label ? sql`
-    INNER JOIN label_image ON (image.id = label_image.image)
-    ` : sql``}
-    LEFT JOIN visitor ON (log.visitor_id = visitor.id AND log.visitor_provider = visitor.provider)
-    WHERE ${and(where)}
-    GROUP BY ${sql(group)}
-    ORDER BY last_time DESC
-  `
-  return images
+    const images = await sql<UserLogImage[]>`
+      SELECT
+        image.id AS id,
+        bundle,
+        name,
+        width,
+        height,
+        MIN(status) AS status,
+        MAX(log.ctime) AS last_time,
+        visitor_id,
+        visitor_provider,
+        (array_agg(visitor.data))[1] AS visitor,
+        jsonb_agg(DISTINCT meta) AS meta
+        ${day}
+      FROM log
+      INNER JOIN image ON (log.image = id)
+      ${filters.label ? sql`
+      INNER JOIN label_image ON (image.id = label_image.image)
+      ` : sql``}
+      LEFT JOIN visitor ON (log.visitor_id = visitor.id AND log.visitor_provider = visitor.provider)
+      WHERE ${and(where)}
+      GROUP BY ${sql(group)}
+      ORDER BY last_time DESC
+    `
+    return images
 }

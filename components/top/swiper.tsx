@@ -1,5 +1,6 @@
-"use client"
+'use client'
 
+import type { SyntheticEvent } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -12,13 +13,29 @@ import 'swiper/css/free-mode'
 import styles from './swiper.module.scss'
 
 import { log } from '@/lib/actions'
+import type { LogMeta, VisitorRef } from '@/lib/db'
 import { ACTION_THUMBNAIL, ACTION_LOCKED } from '@/lib/utils'
 
-export default function PhotoSwiper(props) {
-    const { photos, ip, user, meta } = props
+export interface SwiperPhoto {
+    id: number
+    src: string
+    href: string
+    title: string
+    width: number
+    height: number
+    restricted: boolean
+}
 
-    const handleImageLoad = async (event, photo) => {
-        event.target.classList.add(styles.lazyloaded)
+interface PhotoSwiperProps {
+    photos: SwiperPhoto[]
+    ip: string
+    user?: VisitorRef
+    meta: LogMeta
+}
+
+export default function PhotoSwiper({ photos, ip, user, meta }: PhotoSwiperProps) {
+    const handleImageLoad = async (event: SyntheticEvent<HTMLImageElement>, photo: SwiperPhoto) => {
+        event.currentTarget.classList.add(styles.lazyloaded)
         log(photo.id, photo.restricted ? ACTION_LOCKED : ACTION_THUMBNAIL, ip, user, meta)
     }
 
@@ -34,12 +51,12 @@ export default function PhotoSwiper(props) {
                 {photos.map(photo => (
                     <SwiperSlide key={photo.id} className={styles.slide}>
                         <Link href={photo.href}>
+                            {/* Thumbnails are already resized and access-controlled by the image route */}
                             <Image
                                 src={photo.src}
-                                srcSet={photo.srcSet}
                                 width={photo.width}
                                 height={photo.height}
-                                sizes="(width <= 600px) 10vw, 25vw"
+                                unoptimized
                                 alt={photo.title}
                                 className={styles.image}
                                 onLoad={(e) => handleImageLoad(e, photo)} />

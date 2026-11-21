@@ -1,10 +1,12 @@
+import type { Metadata } from 'next'
+
 import Gallery from '@/components/gallery'
 import Selector from '@/components/selector'
 import Top from '@/components/top'
 
 import { getTitle } from '@/lib/meta'
 
-export default async function Page(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+export default async function Page(props: PageProps<'/'>) {
     const searchParams = await props.searchParams
     if (Object.keys(searchParams).length > 0)
         return <Gallery searchParams={searchParams} />
@@ -17,7 +19,7 @@ export default async function Page(props: { searchParams: Promise<{ [key: string
         )
 }
 
-export async function generateMetadata(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+export async function generateMetadata(props: PageProps<'/'>): Promise<Metadata> {
     const searchParams = await props.searchParams
 
     if (Object.keys(searchParams).length > 0)

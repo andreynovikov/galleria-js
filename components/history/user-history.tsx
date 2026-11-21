@@ -1,40 +1,60 @@
 import { Fragment } from 'react'
 import { redirect } from 'next/navigation'
-import moment from 'moment'
+import moment, { type Moment } from 'moment'
 
-import { getUserLog } from '@/lib/db'
+import { getUserLog, type UserLogFilters, type UserLogImage } from '@/lib/db'
+import { param } from '@/lib/utils'
 import { auth } from '@/auth'
 
 const adminIds = process.env.ADMIN_ID?.split(',') ?? []
 const basePath = process.env.BASE_PATH ?? ''
 
-export default async function UserHistory(props) {
-    const params = await props.params
+type HistoryImage = Omit<UserLogImage, 'meta'> & { meta: { zoom?: number } }
+
+interface Profile {
+    id: string | null
+    provider: string | null
+    name?: string
+    email?: string
+    image?: string
+    [key: string]: unknown
+}
+
+interface Day {
+    day: Moment
+    visitors: Map<string, { profile: Profile, images: HistoryImage[] }>
+}
+
+export default async function UserHistory(props: PageProps<'/history/[ip]'> | PageProps<'/history/[ip]/[day]'>) {
+    const params: { ip: string, day?: string } = await props.params
     const searchParams = await props.searchParams
     const session = await auth()
-    if (!session.user || !adminIds.includes(session.user.id))
+    if (!session?.user?.id || !adminIds.includes(session.user.id))
         redirect('/api/auth/signin')
 
-    const filters = {
+    const filters: UserLogFilters = {
         ip: decodeURIComponent(params.ip),
-        label: searchParams['-filt.label'],
-        status: searchParams['-filt.status']
+        label: param(searchParams, '-filt.label'),
+        status: param(searchParams, '-filt.status')
     }
     if (params.day)
         filters.day = decodeURIComponent(params.day)
     const images = await getUserLog(filters)
 
-    const days = images.reduce((days, image) => {
+    const days = images.reduce<Day[]>((days, logImage) => {
         const lastDay = days.at(-1)
-        const day = moment(image.day ?? params.day)
-        image.meta = image.meta.reduce((meta, item) => {
-            if (item?.zoom) {
-                meta.zoom = Math.max(item.zoom, meta.zoom ?? 1)
-            }
-            return meta
-        }, {})
+        const day = moment(logImage.day ?? params.day)
+        const image: HistoryImage = {
+            ...logImage,
+            meta: logImage.meta.reduce<{ zoom?: number }>((meta, item) => {
+                if (item?.zoom) {
+                    meta.zoom = Math.max(item.zoom, meta.zoom ?? 1)
+                }
+                return meta
+            }, {})
+        }
         const visitorKey = `${image.visitor_id}@${image.visitor_provider}`
-        const profile = {
+        const profile: Profile = {
             id: image.visitor_id,
             provider: image.visitor_provider,
             ...image.visitor
@@ -42,11 +62,10 @@ export default async function UserHistory(props) {
         if (!lastDay?.day.isSame(day, 'day')) {
             days.push({
                 day,
-                visitors: new Map()
-            })
-            days.at(-1).visitors.set(visitorKey, {
-                profile,
-                images: [image]
+                visitors: new Map([[visitorKey, {
+                    profile,
+                    images: [image]
+                }]])
             })
         } else if (!lastDay.visitors.has(visitorKey)) {
             lastDay.visitors.set(visitorKey, {
@@ -54,14 +73,14 @@ export default async function UserHistory(props) {
                 images: [image]
             })
         } else {
-            lastDay.visitors.get(visitorKey).images.push(image)
+            lastDay.visitors.get(visitorKey)?.images.push(image)
         }
         return days
     }, [])
 
     return (
         days.map(day => (
-            <div key={day.day}>
+            <div key={day.day.toISOString()}>
                 <h1>
                     {day.day.format('LL')}
                 </h1>
@@ -75,7 +94,7 @@ export default async function UserHistory(props) {
                                     <>
                                         {visitor.profile.name && visitor.profile.email && <div className="profile">email: {visitor.profile.email}</div>}
                                         {Object.entries(visitor.profile).filter(([k]) => !['name', 'email', 'image'].includes(k)).map(([k, v]) => (
-                                            <div className="profile" key={k}>{k}: {v}</div>
+                                            <div className="profile" key={k}>{k}: {String(v)}</div>
                                         ))}
                                     </>
                                 )}
@@ -92,7 +111,7 @@ export default async function UserHistory(props) {
                                         decoding="async"
                                         src={`${basePath}${image.bundle}/${image.name}?format=thumbnail&size=s`}
                                         alt={`${image.bundle}/${image.name}`}
-                                        title={image.meta.zoom}
+                                        title={image.meta.zoom?.toString()}
                                         style={{ aspectRatio: image.width / image.height }} />
                                 </a>
                             ))}

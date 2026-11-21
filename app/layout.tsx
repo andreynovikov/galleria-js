@@ -10,7 +10,7 @@ const nunito = Nunito({
 import 'modern-normalize/modern-normalize.css'
 import './globals.scss'
 
-export default function RootLayout({ children }) {
+export default function RootLayout({ children }: LayoutProps<'/'>) {
     return (
         <html lang="en" className={nunito.className}>
             <body>

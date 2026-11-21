@@ -3,21 +3,28 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { TagCloud } from 'react-tagcloud'
+import { TagCloud, type ColorOptions, type Tag } from 'react-tagcloud'
 
 import { getRelatedLabels } from '@/lib/actions'
+import type { LabelCount } from '@/lib/db'
 
 import './label-cloud.scss'
 
-const options = {
+const options: ColorOptions = {
     luminosity: 'dark',
     hue: '#55ACEE'
 }
 
-export default function LabelCloud({ labels }) {
-    const [includedLabels, setIncludedLabels] = useState([])
-    const [excludedLabels, setExcludedLabels] = useState([])
-    const [relatedLabels, setRelatedLabels] = useState([])
+type LabelTag = Tag & LabelCount
+
+interface LabelCloudProps {
+    labels: LabelCount[]
+}
+
+export default function LabelCloud({ labels }: LabelCloudProps) {
+    const [includedLabels, setIncludedLabels] = useState<number[]>([])
+    const [excludedLabels, setExcludedLabels] = useState<number[]>([])
+    const [relatedLabels, setRelatedLabels] = useState<number[]>([])
 
     useEffect(() => {
         getRelatedLabels(includedLabels, excludedLabels).then(result => setRelatedLabels(result.map(label => label.id)))
@@ -25,7 +32,9 @@ export default function LabelCloud({ labels }) {
 
     const router = useRouter()
 
-    const customRenderer = (tag, size, color) => {
+    const tags: LabelTag[] = labels.map(label => ({ ...label, value: label.name, key: String(label.id) }))
+
+    const customRenderer = (tag: LabelTag, size: number, color: string) => {
         const fontSize = size + 'px'
         const tagStyle = { color, fontSize }
 
@@ -49,7 +58,7 @@ export default function LabelCloud({ labels }) {
         )
     }
 
-    const handleOnPress = (tag) => {
+    const handleOnPress = (tag: LabelTag) => {
         if (excludedLabels.includes(tag.id))
             setExcludedLabels(excluded => excluded.filter(id => id != tag.id))
         else
@@ -75,13 +84,13 @@ export default function LabelCloud({ labels }) {
     return (
         <div className="labels">
             <TagCloud
-                tags={labels}
+                tags={tags}
                 shuffle={false}
                 minSize={12}
                 maxSize={22}
                 colorOptions={options}
-                renderer={customRenderer}
-                onClick={handleOnPress} />
+                renderer={(tag, size, color) => customRenderer(tag as LabelTag, size, color)}
+                onClick={(tag: Tag) => handleOnPress(tag as LabelTag)} />
             {includedLabels.length > 0 && (
                 <div>
                     <button className="button" onClick={handleButtonClick}>Показать</button>

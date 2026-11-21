@@ -2,9 +2,10 @@ import { Fragment } from 'react'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
-import moment from 'moment'
+import moment, { type Moment } from 'moment'
 
-import { getLogUsers } from '@/lib/db'
+import { getLogUsers, type LogUser } from '@/lib/db'
+import { param } from '@/lib/utils'
 import { auth } from '@/auth'
 
 const adminIds = process.env.ADMIN_ID?.split(',') ?? []
@@ -12,20 +13,25 @@ const adminIds = process.env.ADMIN_ID?.split(',') ?? []
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export default async function History(props) {
+interface Day {
+    day: Moment
+    users: LogUser[]
+}
+
+export default async function History(props: PageProps<'/history'>) {
     const searchParams = await props.searchParams
     const session = await auth()
-    if (!session.user || !adminIds.includes(session.user.id))
+    if (!session?.user?.id || !adminIds.includes(session.user.id))
         redirect('/api/auth/signin')
 
     const filters = {
-        from: moment(searchParams['-filt.from'] ?? moment().subtract(3, 'months')),
-        label: searchParams['-filt.label'],
-        status: searchParams['-filt.status']
+        from: moment(param(searchParams, '-filt.from') ?? moment().subtract(3, 'months')).toDate(),
+        label: param(searchParams, '-filt.label'),
+        status: param(searchParams, '-filt.status')
     }
     const users = await getLogUsers(filters)
 
-    const days = users.reduce((days, user) => {
+    const days = users.reduce<Day[]>((days, user) => {
         const last = days.at(-1)
         const day = moment(user.day)
         user.meta = user.meta.filter(meta => meta.browser || meta.ua || meta.device)
@@ -41,7 +47,7 @@ export default async function History(props) {
     }, [])
 
     return days.map(day => (
-        <div className="users" key={day.day}>
+        <div className="users" key={day.day.toISOString()}>
             <div className="date">
                 {day.day.format('LL')}
             </div>
@@ -67,14 +73,14 @@ export default async function History(props) {
                             {user.meta.map((meta, index) => (
                                 <Fragment key={index}>
                                     {index > 0 && ', '}
-                                    {meta.browser.name ? <>
+                                    {meta.browser?.name ? <>
                                         {`${meta.browser.name}`}
                                         {meta.browser.major && meta.browser.type !== 'crawler' && `/${meta.browser.major}`}
                                     </> : meta.ua}
-                                    {meta.browser.type && ` (${meta.browser.type})`}
-                                    {(meta.device.vendor || meta.device.type) && ' on '}
-                                    {meta.device.vendor && `${meta.device.vendor} ${meta.device.model}`}
-                                    {meta.device.type && ` (${meta.device.type})`}
+                                    {meta.browser?.type && ` (${meta.browser.type})`}
+                                    {(meta.device?.vendor || meta.device?.type) && ' on '}
+                                    {meta.device?.vendor && `${meta.device.vendor} ${meta.device.model}`}
+                                    {meta.device?.type && ` (${meta.device.type})`}
                                 </Fragment>
                             ))}
                         </span>

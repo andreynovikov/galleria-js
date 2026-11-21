@@ -2,3 +2,4 @@
 .docker/
 .next/
 node_modules/
+tsconfig.tsbuildinfo

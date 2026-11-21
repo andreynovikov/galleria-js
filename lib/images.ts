@@ -4,8 +4,8 @@ import { extname, join } from 'path'
 import Image from './image'
 import { getBundleImages } from './db'
 
-export async function syncBundle(bundle, updateMetadata=false) {
-    const path = join(process.env.PHOTOS_FOLDER, bundle)
+export async function syncBundle(bundle: string, updateMetadata = false) {
+    const path = join(process.env.PHOTOS_FOLDER as string, bundle)
     console.log(path)
 
     // List files in directory
@@ -13,19 +13,19 @@ export async function syncBundle(bundle, updateMetadata=false) {
     const imageFiles = files.filter(file => {
         return extname(file).toLowerCase() === '.jpg'
     })
-    const items = imageFiles.reduce((items, file) => {
+    const items = imageFiles.reduce<Record<string, number>>((items, file) => {
         items[file] = 2
         return items
     }, {})
 
     // Look what is already present in database
-    const ids = {}
+    const ids: Record<string, number> = {}
     const images = await getBundleImages(bundle)
     for (const image of images) {
         if (!(image.name in items))
             items[image.name] = 0
         if (items[image.name] === 3) {
-            // Remove duplicates                                                                                                                                     
+            // Remove duplicates
             //im = GalleriaImage.fromid(image['id'])
             //im.delete(keep_file=True)
             continue

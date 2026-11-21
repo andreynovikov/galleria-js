@@ -1,13 +1,16 @@
-import { FlatCompat } from '@eslint/eslintrc'
+import { defineConfig, globalIgnores } from 'eslint/config'
+import nextVitals from 'eslint-config-next/core-web-vitals'
+import nextTs from 'eslint-config-next/typescript'
 
-const compat = new FlatCompat({
-    // import.meta.dirname is available after Node.js v20.11.0
-    baseDirectory: import.meta.dirname,
-})
-
-const eslintConfig = [
-    ...compat.config({
-        extends: ['next/core-web-vitals', 'next/typescript'],
+const eslintConfig = defineConfig([
+    ...nextVitals,
+    ...nextTs,
+    globalIgnores([
+        '.next/**',
+        '.docker/**',
+        'next-env.d.ts',
+    ]),
+    {
         rules: {
             'react-hooks/exhaustive-deps': 'warn',
             '@typescript-eslint/no-unused-expressions': [
@@ -19,7 +22,7 @@ const eslintConfig = [
                 },
             ],
         },
-    }),
-]
+    },
+])
 
 export default eslintConfig

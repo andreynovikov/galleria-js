@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 const gaId = process.env.GOOGLE_ANALYTICS_ID
 const gaSecret = process.env.GOOGLE_ANALYTICS_API_SECRET
 
-export async function sendEvent(name, params) {
+export async function sendEvent(name: string, params: Record<string, unknown>) {
     const gaClientId = (await cookies()).get('ga_client_id')
     const event = { name, params: { 'event_category': 'galleria', ...params } }
     if (gaId && gaSecret && gaClientId)

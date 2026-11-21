@@ -8,13 +8,13 @@ const { auth } = NextAuth(authConfig)
 const basePath = process.env.BASE_PATH ?? ''
 const restrictedLabels = new Set(process.env.RESTRICTED_LABELS?.split(',') ?? [])
 
-export default auth((request) => {
+export const proxy = auth((request) => {
     if (request.method === 'POST') // Do not intercept next.js requests
         return
     const labels = request.nextUrl.searchParams.get('-filt.labels')?.split(',') ?? []
-    if (request.nextUrl.pathname.startsWith('/history') || labels.filter(Set.prototype.has, restrictedLabels).length > 0) {
+    if (request.nextUrl.pathname.startsWith('/history') || labels.some(label => restrictedLabels.has(label))) {
         if (!request.auth) {
-            const callbackUrl=`${basePath}${request.nextUrl.pathname}${request.nextUrl.search}`
+            const callbackUrl = `${basePath}${request.nextUrl.pathname}${request.nextUrl.search}`
             const url = new URL(`${basePath}/api/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`, request.nextUrl.origin)
             return Response.redirect(url)
         }

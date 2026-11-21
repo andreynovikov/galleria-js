@@ -1,17 +1,17 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, type SyntheticEvent } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { sendGAEvent } from '@next/third-parties/google'
 
-import { MasonryPhotoAlbum } from 'react-photo-album'
-import Lightbox from 'yet-another-react-lightbox'
+import { MasonryPhotoAlbum, type Photo } from 'react-photo-album'
+import Lightbox, { type Slide } from 'yet-another-react-lightbox'
 import Download from 'yet-another-react-lightbox/plugins/download'
 
 import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen'
 import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 
-import { LazyLoadImage, trackWindowScroll } from 'react-lazy-load-image-component'
+import { LazyLoadImage, trackWindowScroll, type LazyComponentProps } from 'react-lazy-load-image-component'
 
 import GridLoader from 'react-spinners/GridLoader'
 
@@ -25,9 +25,38 @@ import './album.scss'
 import './lightbox.scss'
 
 import { log } from '@/lib/actions'
+import type { LogMeta, VisitorRef } from '@/lib/db'
 import { ACTION_ZOOM, ACTION_THUMBNAIL, ACTION_LOCKED, ACTION_INFO } from '@/lib/utils'
 
-function scrollTo(id) {
+export interface ImageSource {
+    src: string
+    width: number
+    height: number
+}
+
+export interface AlbumPhoto {
+    id: number
+    src: string
+    /** URL of the original image or `false` if download is not allowed */
+    download: string | false
+    title: string
+    width: number
+    height: number
+    restricted: boolean
+    /** Thumbnails followed by screen-size image */
+    srcSet: ImageSource[]
+}
+
+type Thumbnail = Photo & AlbumPhoto
+
+interface AlbumProps extends LazyComponentProps {
+    photos: AlbumPhoto[]
+    ip: string
+    user?: VisitorRef
+    meta: LogMeta
+}
+
+function scrollTo(id: string | null) {
     setTimeout(() => { // for some reason album is not ready on first render
         const thumbnail = document.getElementById('thumbnail-' + id)
         if (thumbnail)
@@ -35,20 +64,20 @@ function scrollTo(id) {
     }, 100)
 }
 
-function Album(props) {
+function Album(props: AlbumProps) {
     const { photos, ip, user, meta, scrollPosition } = props
 
     const [index, setIndex] = useState(-1)
 
-    const urlRef = useRef(undefined)
+    const urlRef = useRef<string>(undefined)
     const pathname = usePathname()
     const router = useRouter()
     const searchParams = useSearchParams()
 
-    const setIndexFromHash = (opener) => {
+    const setIndexFromHash = (opener: string | null) => {
         if (window.location.hash.startsWith('#view-')) {
             const hs = window.location.hash.split('-')
-            setIndex(hs[1])
+            setIndex(Number(hs[1]))
             scrollTo(hs[2])
         } else {
             setIndex(-1)
@@ -57,7 +86,7 @@ function Album(props) {
         }
     }
 
-    const handleBackEvent = useCallback((event) => {
+    const handleBackEvent = useCallback((event: PopStateEvent) => {
         if (event.state)
             setIndexFromHash(null)
     }, [])
@@ -80,14 +109,14 @@ function Album(props) {
         router.push(`/api/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`)
     }
 
-    const handleThumbnailClick = ({ index }) => {
+    const handleThumbnailClick = ({ index }: { index: number }) => {
         if (photos[index].restricted && user?.id === undefined)
             signIn()
         else
             setIndex(index)
     }
 
-    const handleZoom = (zoom) => {
+    const handleZoom = (zoom: number) => {
         log(photos[index].id, ACTION_ZOOM, ip, user, { zoom, ...meta })
         sendGAEvent('event', 'zoom_photo', {
             event_category: 'galleria',
@@ -97,10 +126,10 @@ function Album(props) {
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    const handleDebouncedZoom = useCallback(debounce(handleZoom, 1000), [photos, index])
+    const handleDebouncedZoom = useMemo(() => debounce(handleZoom, 1000), [photos, index])
 
-    const handleImageLoad = async (event, photo) => {
-        event.target.classList.add('lazyloaded')
+    const handleImageLoad = async (event: SyntheticEvent<HTMLImageElement>, photo: Thumbnail) => {
+        event.currentTarget.classList.add('lazyloaded')
         log(photo.id, photo.restricted ? ACTION_LOCKED : ACTION_THUMBNAIL, ip, user, meta)
     }
 
@@ -113,13 +142,15 @@ function Album(props) {
         router.push(`/download?images=${ids.join()}`)
     }
 
-    const thumbnails = photos.map(image => (
+    const thumbnails: Thumbnail[] = photos.map(image => (
         {
             ...image,
-            src: image.srcSet.at(-2).src,
+            src: image.srcSet.at(-2)?.src ?? image.src,
             srcSet: image.srcSet.slice(0, -1)
         }
     ))
+
+    const slides: Slide[] = photos
 
     return <>
         <MasonryPhotoAlbum
@@ -154,7 +185,7 @@ function Album(props) {
                 )
             }} />
         <Lightbox
-            slides={photos}
+            slides={slides}
             open={index >= 0}
             index={index}
             close={() => {
@@ -195,11 +226,13 @@ function Album(props) {
                 buttonPrev: photos.length <= 1 ? () => null : undefined,
                 buttonNext: photos.length <= 1 ? () => null : undefined,
                 iconLoading: () => <GridLoader color="white" />,
-                slideFooter: ({ slide }) => <ImageDescription id={slide.id} className="image_description" />
+                slideFooter: ({ slide }) => <ImageDescription id={(slide as AlbumPhoto).id} className="image_description" />
             }}
             download={{
                 download: ({ slide, saveAs }) => { // this is required for disableable downloads
-                    saveAs(slide.download)
+                    const url = (slide as AlbumPhoto).download
+                    if (url)
+                        saveAs(url)
                 }
             }}
         />

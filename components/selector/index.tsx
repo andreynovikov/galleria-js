@@ -17,5 +17,4 @@ export default async function Selector() {
             <BundleList />
         </div>
     )
-   
 }
