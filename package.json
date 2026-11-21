@@ -17,7 +17,10 @@
     "description": "Local photo storage react gallery",
     "overrides": {
         "react": "$react",
-        "react-dom": "$react-dom"
+        "react-dom": "$react-dom",
+        "archiver": {
+            "readdir-glob": "^4.0.0"
+        }
     },
     "dependencies": {
         "@next/third-parties": "^16.4.6",
