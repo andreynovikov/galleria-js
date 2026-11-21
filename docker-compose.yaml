@@ -8,6 +8,8 @@ services:
       target: runner
       args:
         entity: galleria
+      secrets:
+        - env_local
       tags:
         - galleria
     volumes:
@@ -17,6 +19,7 @@ services:
     network_mode: bridge
     ports:
       - "127.0.0.1:3000:3000/tcp"
+    env_file: .env.local
     environment:
       NODE_ENV: production
     restart: unless-stopped
@@ -25,3 +28,7 @@ services:
       options:
         syslog-address: unixgram:///run/systemd/journal/dev-log
         tag: "{{.Name}}/{{.ID}}"
+
+secrets:
+  env_local:
+    file: ./.env.local

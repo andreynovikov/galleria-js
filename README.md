@@ -36,6 +36,104 @@ New and removed files are picked up automatically when a bundle is viewed. Two U
 * Node.js
 * PostgreSQL
 
+## Deployment
+
+Galleria runs in Docker on the same host as PostgreSQL and the photo archive, behind a front web server that handles HTTPS. You need Docker with Compose v2 and BuildKit (the default in current Docker releases).
+
+### 1. Prepare the host
+
+* **Database.** Create a PostgreSQL database and apply the schema: `psql -d galleria -f sql/schema.sql`. The container connects through the host's socket, mounted at `/var/run/postgresql`.
+  * The container runs as the `node` user (uid 1000).
+  * With `peer` authentication, PostgreSQL sees the container as the host user with uid 1000, so that user needs a database role.
+  * Alternatively, use password authentication and set `PGUSER` and `PGPASSWORD`.
+* **Photos.** The archive is mounted from `/photos` (change the volume in [docker-compose.yaml](docker-compose.yaml) if it lives elsewhere). Uid 1000 needs write access to the album folders, because thumbnails are written to a `thumbs/` subfolder in each of them.
+
+### 2. Configure
+
+Settings come from two files:
+* `.env`: committed, non-secret defaults (image sizes and the download limit).
+* `.env.local`: your deployment's settings and secrets. Create it next to `docker-compose.yaml`; it is never committed and never copied into the image.
+
+```sh
+PGHOST=/var/run/postgresql
+PGDATABASE=galleria
+PHOTOS_FOLDER=/photos
+
+# Public origin, without BASE_PATH
+BETTER_AUTH_URL=https://example.com
+# Only if the app is served under a path prefix
+BASE_PATH=/photos
+# Generate with: openssl rand -base64 32
+AUTH_SECRET=…
+
+# OAuth apps, for each provider you use: github, google, yandex, mailru, vk
+AUTH_GITHUB_ID=…
+AUTH_GITHUB_SECRET=…
+
+# Administrators as provider:id pairs, see Maintenance
+ADMIN_ID=github:12345
+# Photos with these labels (names or ids) are blurred for anonymous visitors
+RESTRICTED_LABELS=Private
+# Optional
+GOOGLE_ANALYTICS_ID=…
+GOOGLE_ANALYTICS_API_SECRET=…
+```
+
+Register `<BETTER_AUTH_URL><BASE_PATH>/api/auth/callback/<provider>` as the callback URL in each OAuth app (for example `https://example.com/photos/api/auth/callback/github`).
+
+Over HTTPS, the session cookies get the `__Secure-` prefix. If you serve the app over plain HTTP, set `BETTER_AUTH_URL` to its `http://` address, or signing in won't work.
+
+### 3. Build and run
+
+```sh
+npm run docker-build    # builds the image, tagged galleria and galleria:<version>
+npm run docker-deploy   # starts or recreates the container
+```
+
+Both scripts call `docker compose` through `sudo`.
+
+`.env.local` is used twice, and never stored in the image:
+* **During the build,** it is mounted as a build secret, because `BASE_PATH` is fixed at build time and the build loads the auth configuration.
+* **At runtime,** it is passed to the container with `env_file`.
+
+When you change `.env.local`, rebuild if you changed `BASE_PATH`. For any other setting, `npm run docker-deploy` is enough.
+
+The app listens on `127.0.0.1:3000`. Logs go to the systemd journal: `journalctl CONTAINER_NAME=nextjs-galleria`.
+
+### 4. Front web server
+
+Proxy requests to `127.0.0.1:3000`:
+* Pass the client address in `X-Real-IP`, and overwrite `X-Forwarded-For` instead of appending to it. These headers are used for access logs and for the sign-in rate limit.
+* Pass `X-Forwarded-Host` and `X-Forwarded-Proto`, which are used to build sign-in redirects when `BETTER_AUTH_URL` is not set.
+
+Static assets are copied to `.docker/static/` next to `docker-compose.yaml` on every start, so the web server can serve them directly. An nginx example for `BASE_PATH=/photos`:
+
+```nginx
+location /photos/ {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location /photos/_next/static/ {
+    alias /path/to/galleria-js/.docker/static/;
+    expires 1y;
+}
+```
+
+Photos are resized on request, so consider rate limiting `*.jpg` URLs (for example with nginx `limit_req`).
+
+### Updating
+
+```sh
+git pull
+npm run docker-build
+npm run docker-deploy
+```
+
 ## Tests
 
 End-to-end tests use Playwright and run on every push in GitHub Actions. To run them locally you need a PostgreSQL role that can create databases. The tests create and reset a separate database called `galleria_e2e`; set `E2E_PGDATABASE` to use another one.

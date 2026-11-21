@@ -6,3 +6,9 @@ node_modules
 .next
 .git
 .gitignore
+.env*.local
+e2e/.data
+test-results
+playwright-report
+blob-report
+PROBLEMS.md
