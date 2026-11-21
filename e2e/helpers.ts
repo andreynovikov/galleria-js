@@ -14,6 +14,7 @@ export const bundles = [GEORGIA, ARMENIA, FAMILY]
 /** Playwright storage states created by global setup */
 export const asUser = join(authDir, 'user.json')
 export const asAdmin = join(authDir, 'admin.json')
+export const asViewer = join(authDir, 'viewer.json')
 
 let sql: postgres.Sql | undefined
 

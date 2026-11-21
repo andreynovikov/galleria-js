@@ -30,6 +30,14 @@ export const users = {
         name: 'E2E Admin',
         email: 'admin@example.com',
         censorship: 1
+    },
+    /** Signed in, but not allowed to see censored photos */
+    viewer: {
+        id: 'e2e-viewer',
+        provider: 'github',
+        name: 'E2E Viewer',
+        email: 'viewer@example.com',
+        censorship: 0
     }
 }
 

@@ -72,7 +72,8 @@ export interface ImageFilters {
     till?: Date
     labels?: number[]
     notlabels?: number[]
-    censored?: number
+    /** Highest censorship level of listed images */
+    censored: number
 }
 
 export interface Visitor {
@@ -243,10 +244,7 @@ export async function listImages(filters: ImageFilters, order: string) {
     if (where.length === 1)
         return [] // never output all images
 
-    if (filters.censored) // auxilary filter
-        where.push(sql`censored <= ${filters.censored}`)
-    else
-        where.push(sql`censored = 0`)
+    where.push(sql`censored <= ${filters.censored}`)
 
     let join = sql``
     let group = sql``
@@ -292,7 +290,7 @@ export async function getBundleImages(bundle: string) {
     return images
 }
 
-export async function getRandomImages(limit: number) {
+export async function getRandomImages(limit: number, censored: number) {
     const restrictedLabels = await getRestrictedLabels()
     const hasRestricted = restrictedLabels.length > 0
 
@@ -321,7 +319,7 @@ export async function getRandomImages(limit: number) {
       ${hasRestricted ? sql`
       LEFT JOIN label_image ON (id = image)
       ` : sql``}
-      WHERE width > 0 AND censored <= 1
+      WHERE width > 0 AND censored <= ${censored}
       ${hasRestricted ? sql`
       GROUP BY id, name, bundle, width, height
       ` : sql``}

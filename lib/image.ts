@@ -39,12 +39,16 @@ function decodeString(value: unknown) {
     return decode(String(value))
 }
 
+/** Thrown when an image has no database record */
+export class ImageNotFoundError extends Error {}
+
 export default class Image implements Partial<ImageRecord> {
     id?: number
     name?: string
     bundle?: string
     width?: number
     height?: number
+    censored?: number
     ctime?: Date | null
     path?: string
     labels?: Label[]
@@ -108,7 +112,7 @@ export default class Image implements Partial<ImageRecord> {
             data = await getImageByName(bundle, name)
         }
         if (data === undefined)
-            throw new Error(`Image ${this.id ?? this.path} not found`)
+            throw new ImageNotFoundError(`Image ${this.id ?? this.path} not found`)
         Object.assign(this, data)
         this.fetched = true
     }

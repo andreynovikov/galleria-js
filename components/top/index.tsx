@@ -4,7 +4,7 @@ import { getRandomImages } from '@/lib/db'
 import { thumbnailWidths } from '@/lib/image'
 import { clientIp, uaMeta } from '@/lib/utils'
 
-import { getSession } from '@/auth'
+import { censorshipLevel, getSession } from '@/auth'
 import PhotoSwiper, { type SwiperPhoto } from './swiper'
 
 const basePath = process.env.BASE_PATH ?? ''
@@ -15,7 +15,7 @@ export default async function Top() {
     const meta = uaMeta(header)
     const ip = clientIp(header)
 
-    const images = await getRandomImages(20)
+    const images = await getRandomImages(20, censorshipLevel(session))
 
     const sid = session?.user?.id ?? ''
     const sizes = Object.keys(thumbnailWidths)

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 
 import { expect, test } from '@playwright/test'
 
-import { ARMENIA, GEORGIA, asUser, imageId, lightbox, thumbnail, thumbnails } from './helpers'
+import { ARMENIA, GEORGIA, asUser, asViewer, description, imageId, lightbox, thumbnail, thumbnails } from './helpers'
 
 test.describe('anonymous visitor', () => {
     test('is asked to sign in to see history', async ({ page }) => {
@@ -70,6 +70,16 @@ test.describe('anonymous visitor', () => {
     })
 })
 
+test.describe('signed-in visitor without censorship level', () => {
+    test.use({ storageState: asViewer })
+
+    test('does not see censored photos', async ({ page }) => {
+        await page.goto(`${ARMENIA}?-filt.censored=9`)
+        await expect(thumbnails(page)).toHaveCount(1)
+        await expect(thumbnail(page, await imageId(ARMENIA, 'IMG_0101.jpg'))).toBeVisible()
+    })
+})
+
 test.describe('signed-in visitor', () => {
     test.use({ storageState: asUser })
 
@@ -91,6 +101,19 @@ test.describe('signed-in visitor', () => {
         await page.goto(ARMENIA)
         await expect(thumbnails(page)).toHaveCount(2)
         await expect(thumbnail(page, await imageId(ARMENIA, 'IMG_0102.jpg'))).toBeVisible()
+    })
+
+    test('sees description of censored photo allowed by censorship level', async ({ page }) => {
+        const id = await imageId(ARMENIA, 'IMG_0102.jpg')
+        await page.goto(ARMENIA)
+        await thumbnail(page, id).click()
+        await expect(description(page).locator('.title')).toHaveText('Без тегов')
+    })
+
+    test('can lower censorship level with filter', async ({ page }) => {
+        await page.goto(`${ARMENIA}?-filt.censored=0`)
+        await expect(thumbnails(page)).toHaveCount(1)
+        await expect(thumbnail(page, await imageId(ARMENIA, 'IMG_0101.jpg'))).toBeVisible()
     })
 
     test('downloads album', async ({ page }) => {

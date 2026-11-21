@@ -36,6 +36,12 @@ test.describe('gallery', () => {
         await expect(thumbnail(page, await imageId(ARMENIA, 'IMG_0101.jpg'))).toBeVisible()
     })
 
+    test('censorship filter can not show censored photos to anonymous visitors', async ({ page }) => {
+        await page.goto(`${ARMENIA}?-filt.censored=9`)
+        await expect(thumbnails(page)).toHaveCount(1)
+        await expect(thumbnail(page, await imageId(ARMENIA, 'IMG_0101.jpg'))).toBeVisible()
+    })
+
     test('filters all photos by label name', async ({ page }) => {
         await page.goto('/?-filt.labels=Таня')
         await expect(page).toHaveTitle('Фотографии с тегом Таня')

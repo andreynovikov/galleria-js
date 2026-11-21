@@ -9,7 +9,7 @@ import { getLabelMaps, listImages } from '@/lib/db'
 import { thumbnailWidths } from '@/lib/image'
 import { syncBundle } from '@/lib/images'
 import { bool, clientIp, param, uaMeta, type SearchParams } from '@/lib/utils'
-import { getSession } from '@/auth'
+import { censorshipLevel, getSession } from '@/auth'
 
 import GaEvent from './ga-event'
 import styles from './gallery.module.css'
@@ -44,9 +44,12 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
     const from = parseDate(param(searchParams, '-filt.from'))
     const till = parseDate(param(searchParams, '-filt.till'))
     const censoredParam = param(searchParams, '-filt.censored')
-    let censored = censoredParam !== undefined ? +censoredParam : undefined
+    // The filter can only lower the visitor's own censorship level
+    const level = censorshipLevel(session)
+    const requested = Number(censoredParam)
+    const censored = censoredParam !== undefined && Number.isInteger(requested) ? Math.max(0, Math.min(requested, level)) : level
 
-    if (bundle && labels === undefined && notlabels === undefined && censored === undefined) {
+    if (bundle && labels === undefined && notlabels === undefined && censoredParam === undefined) {
         try {
             const shouldUpdateMetadata = bool(param(searchParams, 'updatemetadata'))
             await syncBundle(bundle, shouldUpdateMetadata)
@@ -56,9 +59,6 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
             }
         }
     }
-
-    if (censored === undefined && session?.user?.censorship !== undefined)
-        censored = session.user.censorship
 
     const order = param(searchParams, '-nav.order') || 'stime'
 

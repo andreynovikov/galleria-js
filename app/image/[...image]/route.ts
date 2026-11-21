@@ -4,9 +4,9 @@ import { join } from 'path'
 
 import { after, type NextRequest } from 'next/server'
 
-import { getSession } from '@/auth'
+import { censorshipLevel, getSession } from '@/auth'
 
-import Image from '@/lib/image'
+import Image, { ImageNotFoundError } from '@/lib/image'
 import { getRestrictedLabels, writeLog } from '@/lib/db'
 import { bool, clientIp, uaMeta, ACTION_ORIGINAL, ACTION_VIEW, ACTION_EXPORT, ACTION_THUMBNAIL, ACTION_LOCKED } from '@/lib/utils'
 
@@ -68,6 +68,22 @@ export async function GET(request: NextRequest) {
             })
         }
     }
+
+    // Censored photos are reported as missing, so their names can not be probed. Files which are not synced
+    // yet have no censorship level, they are not served either.
+    try {
+        await image.fetchData()
+    } catch (e) {
+        if (!(e instanceof ImageNotFoundError))
+            throw e
+        return new Response('Not found', {
+            status: 404
+        })
+    }
+    if ((image.censored ?? 0) > censorshipLevel(session))
+        return new Response('Not found', {
+            status: 404
+        })
 
     if (!session?.user && process.env.RESTRICTED_LABELS !== undefined) {
         const restrictedLabels = await getRestrictedLabels()

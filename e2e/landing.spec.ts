@@ -33,23 +33,19 @@ test.describe('landing page', () => {
     })
 
     test('random photo opens its album', async ({ page }) => {
-        // Random photos include censored ones (censored <= 1), but albums show them only to signed-in visitors
         const censored = (await db()<{ id: number }[]>`SELECT id FROM image WHERE censored > 0`).map(row => row.id)
 
         await page.goto('/')
         const slides = page.locator('.swiper-slide a')
         await expect(slides.first()).toBeVisible()
-        let link, href = '', opener = 0
-        for (link of await slides.all()) {
-            href = await link.getAttribute('href') ?? ''
-            opener = Number(new URL(href, 'http://localhost').searchParams.get('opener'))
-            if (!censored.includes(opener))
-                break
-        }
-        expect(censored).not.toContain(opener)
-        await link!.click()
-        await expect(page).toHaveURL(href)
-        await expect(thumbnail(page, opener)).toBeVisible()
+        const hrefs = await slides.evaluateAll(links => links.map(link => link.getAttribute('href') ?? ''))
+        const openers = hrefs.map(href => Number(new URL(href, 'http://localhost').searchParams.get('opener')))
+        // Censored photos are not shown to anonymous visitors
+        expect(openers.filter(id => censored.includes(id))).toEqual([])
+
+        await slides.first().click()
+        await expect(page).toHaveURL(hrefs[0])
+        await expect(thumbnail(page, openers[0])).toBeVisible()
     })
 
     test('label cloud builds a label filter', async ({ page }) => {

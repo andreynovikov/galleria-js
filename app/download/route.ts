@@ -3,10 +3,10 @@ import type { NextRequest } from 'next/server'
 
 import { ZipArchive } from 'archiver'
 
-import Image from '@/lib/image'
+import Image, { ImageNotFoundError } from '@/lib/image'
 import { writeLog } from '@/lib/db'
 import { clientIp, uaMeta, ACTION_DOWNLOAD } from '@/lib/utils'
-import { getSession } from '@/auth'
+import { censorshipLevel, getSession } from '@/auth'
 
 const screenMaxWidth = Number(process.env.SCREEN_MAX_WIDTH)
 
@@ -17,10 +17,11 @@ export async function GET(request: NextRequest) {
         redirect('/signin')
 
     const user = session.user
+    const level = censorshipLevel(session)
     const ip = clientIp(request.headers)
     const meta = uaMeta(request.headers)
 
-    const ids = (request.nextUrl.searchParams.get('images') ?? '').split(',').map(Number).filter(id => id > 0)
+    const ids = (request.nextUrl.searchParams.get('images') ?? '').split(',').map(Number).filter(id => Number.isInteger(id) && id > 0)
     const archive = new ZipArchive()
 
     const stream = new ReadableStream({
@@ -31,7 +32,16 @@ export async function GET(request: NextRequest) {
 
             for (const id of ids) {
                 const image = Image.fromId(id)
-                await image.fetchData()
+                try {
+                    await image.fetchData()
+                } catch (e) {
+                    if (e instanceof ImageNotFoundError)
+                        continue
+                    throw e
+                }
+                // Censored photos are skipped the same way as missing ones
+                if ((image.censored ?? 0) > level)
+                    continue
 
                 let width = screenMaxWidth
                 if (image.width !== undefined && image.height !== undefined && image.width < image.height)

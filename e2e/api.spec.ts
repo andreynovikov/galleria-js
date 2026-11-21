@@ -5,7 +5,7 @@ import { expect, test, type APIRequestContext } from '@playwright/test'
 import sharp from 'sharp'
 
 import { fixturesFolder } from './env'
-import { ARMENIA, FAMILY, GEORGIA, asUser, imageId } from './helpers'
+import { ARMENIA, FAMILY, GEORGIA, asUser, asViewer, imageId } from './helpers'
 
 async function image(request: APIRequestContext, url: string, type = 'image/jpeg') {
     const response = await request.get(url)
@@ -91,6 +91,42 @@ test.describe('image URLs', () => {
     })
 })
 
+test.describe('censored photo', () => {
+    const url = `${ARMENIA}/IMG_0102.jpg`
+    const formats = ['', '?format=original', '?format=export', '?format=thumbnail&size=s']
+
+    test('is reported as missing to anonymous visitor', async ({ request }) => {
+        for (const query of formats) {
+            const response = await request.get(`${url}${query}`)
+            expect(response.status(), query).toBe(404)
+        }
+    })
+
+    test('is reported as missing to visitor without censorship level', async ({ browser }) => {
+        const context = await browser.newContext({ storageState: asViewer })
+        try {
+            for (const query of formats) {
+                const response = await context.request.get(`${url}${query}`)
+                expect(response.status(), query).toBe(404)
+            }
+        } finally {
+            await context.close()
+        }
+    })
+
+    test('is served to visitor allowed by censorship level', async ({ browser }) => {
+        const context = await browser.newContext({ storageState: asUser })
+        try {
+            for (const query of formats) {
+                const response = await context.request.get(`${url}${query}`)
+                expect(response.status(), query).toBe(200)
+            }
+        } finally {
+            await context.close()
+        }
+    })
+})
+
 test.describe('album download', () => {
     test('redirects anonymous visitor to sign in', async ({ request }) => {
         const response = await request.get('/download?images=1', { maxRedirects: 0 })
@@ -109,6 +145,20 @@ test.describe('album download', () => {
             expect(body.subarray(0, 4).toString('latin1')).toBe('PK\x03\x04')
             expect(body.includes('IMG_0101.jpg')).toBe(true)
             expect(body.includes('IMG_0102.jpg')).toBe(true)
+        } finally {
+            await context.close()
+        }
+    })
+
+    test('skips censored and missing photos', async ({ browser }) => {
+        const ids = [await imageId(ARMENIA, 'IMG_0101.jpg'), await imageId(ARMENIA, 'IMG_0102.jpg'), 999999]
+        const context = await browser.newContext({ storageState: asViewer })
+        try {
+            const response = await context.request.get(`/download?images=${ids.join()}`)
+            expect(response.status()).toBe(200)
+            const body = await response.body()
+            expect(body.includes('IMG_0101.jpg')).toBe(true)
+            expect(body.includes('IMG_0102.jpg')).toBe(false)
         } finally {
             await context.close()
         }
