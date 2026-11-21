@@ -15,6 +15,7 @@ export const bundles = [GEORGIA, ARMENIA, FAMILY]
 export const asUser = join(authDir, 'user.json')
 export const asAdmin = join(authDir, 'admin.json')
 export const asViewer = join(authDir, 'viewer.json')
+export const asImpostor = join(authDir, 'impostor.json')
 
 let sql: postgres.Sql | undefined
 

@@ -5,7 +5,7 @@ import { betterAuth, type BetterAuthOptions } from 'better-auth'
 import { genericOAuth, yandex } from 'better-auth/plugins/generic-oauth'
 
 // Relative imports: this module is also loaded by Playwright global setup, which does not resolve `@/`
-import { getUser, type Visitor } from './lib/db'
+import { getUser, isAdminVisitor, type Visitor } from './lib/db'
 import { sendEvent } from './lib/ga'
 
 const basePath = process.env.BASE_PATH ?? ''
@@ -178,11 +178,9 @@ export async function getSessionFromHeaders(headers: Headers): Promise<Session |
 /** Signed-in visitor of the current request (in server components and route handlers) */
 export const getSession = cache(async () => getSessionFromHeaders(await headers()))
 
-const adminIds = process.env.ADMIN_ID?.split(',') ?? []
-
-/** Whether the visitor is listed in `ADMIN_ID` */
+/** Whether the visitor is listed in `ADMIN_ID` (as `provider:id`) */
 export function isAdmin(session: Session | null) {
-    return !!session?.user.id && adminIds.includes(session.user.id)
+    return isAdminVisitor(session?.user)
 }
 
 /** Highest `image.censored` value the visitor may see: anonymous visitors see only uncensored photos */

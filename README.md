@@ -26,7 +26,7 @@ Last two examples are useful for blogging – photos can be inserted in text as 
 
 ## Maintenance
 
-New and removed files are picked up automatically when a bundle is viewed. Two URL parameters force more expensive work and are available only to administrators, whose provider account ids are listed in `ADMIN_ID` (comma-separated). For other visitors they are ignored.
+New and removed files are picked up automatically when a bundle is viewed. Two URL parameters force more expensive work and are available only to administrators, listed in `ADMIN_ID` as comma-separated `provider:id` pairs (for example `ADMIN_ID=github:12345,vk:67890`). For other visitors they are ignored.
 
 * `?updatemetadata=1` on a bundle page re-reads metadata (dimensions, captions, keywords, shooting time) of every photo in the bundle
 * `?format=thumbnail&force=1` on a photo regenerates its cached thumbnail

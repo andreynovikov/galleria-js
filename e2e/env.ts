@@ -31,6 +31,14 @@ export const users = {
         email: 'admin@example.com',
         censorship: 1
     },
+    /** Has the admin's account id, but from another provider */
+    impostor: {
+        id: 'e2e-admin',
+        provider: 'vk',
+        name: 'E2E Impostor',
+        email: 'impostor@example.com',
+        censorship: 1
+    },
     /** Signed in, but not allowed to see censored photos */
     viewer: {
         id: 'e2e-viewer',
@@ -47,7 +55,7 @@ export const env: Record<string, string> = {
     PHOTOS_FOLDER: photosFolder,
     // No photo has `Secret` until e2e/sync.spec.ts adds one
     RESTRICTED_LABELS: 'Private,Secret',
-    ADMIN_ID: users.admin.id,
+    ADMIN_ID: `${users.admin.provider}:${users.admin.id}`,
     // Test-only secret, random enough to not trigger Better Auth entropy warning
     AUTH_SECRET: 'e2e-7f3c9a1d5b8e2f6a0c4d9b7e1a3f5c8d2b6e0a4f',
     BETTER_AUTH_URL: baseURL,

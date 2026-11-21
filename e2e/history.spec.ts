@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { GEORGIA, asAdmin, asUser } from './helpers'
+import { GEORGIA, asAdmin, asImpostor, asUser, db } from './helpers'
 
 test.describe('history', () => {
     test.use({ storageState: asAdmin })
@@ -33,5 +33,23 @@ test.describe('history', () => {
         await expect(page.locator('h2')).toContainText('E2E User')
         await expect(page.locator(`a[href="${GEORGIA}/IMG_0002.jpg"]`)).toBeVisible()
         await expect(page.locator(`a[href="${GEORGIA}/IMG_0001.jpg"]`)).toHaveCount(0)
+    })
+})
+
+test.describe('visitor with admin account id from another provider', () => {
+    test.use({ storageState: asImpostor })
+
+    test('is not an admin', async ({ page }, testInfo) => {
+        await page.goto('/history')
+        await expect(page).toHaveURL(/\/signin/)
+
+        // Views are logged as for any other visitor
+        const ip = `10.1.${Math.floor(testInfo.workerIndex / 250)}.${testInfo.workerIndex % 250 + 1}`
+        const response = await page.request.get(`${GEORGIA}/IMG_0001.jpg`, { headers: { 'x-real-ip': ip } })
+        expect(response.status()).toBe(200)
+        await expect(async () => {
+            const rows = await db()`SELECT 1 FROM log WHERE ip = ${ip} AND visitor_id = 'e2e-admin' AND visitor_provider = 'vk'`
+            expect(rows).toHaveLength(1)
+        }).toPass()
     })
 })

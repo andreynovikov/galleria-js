@@ -17,8 +17,6 @@ if (process.env.NODE_ENV === 'production') {
     sql = global.__postgresSqlClient
 }
 
-const adminIds = process.env.ADMIN_ID?.split(',') ?? []
-
 export interface ImageRecord {
     id: number
     name: string
@@ -87,6 +85,23 @@ export interface Visitor {
 export interface VisitorRef {
     id?: string | null
     provider?: string | null
+}
+
+/**
+ * Admins from `ADMIN_ID`, given as comma-separated `provider:id` pairs. Account ids are only unique within
+ * a provider (most of them are plain numbers), so entries without a provider are ignored.
+ */
+const adminIds = new Set((process.env.ADMIN_ID ?? '').split(',').map(admin => admin.trim()).filter(admin => {
+    if (/^[^:]+:.+$/.test(admin))
+        return true
+    if (admin !== '')
+        console.warn(`Ignoring ADMIN_ID entry "${admin}": admins must be given as provider:id`)
+    return false
+}))
+
+/** Whether the visitor is listed in `ADMIN_ID` */
+export function isAdminVisitor(visitor?: VisitorRef | null) {
+    return !!visitor?.id && !!visitor.provider && adminIds.has(`${visitor.provider}:${visitor.id}`)
 }
 
 export type LogMeta = { [key: string]: JSONValue | undefined }
@@ -470,7 +485,7 @@ export async function getUser(id: string, provider: string, userData: object): P
 }
 
 export async function writeLog(image: number, status: number, ip: string, visitor?: VisitorRef | null, meta: LogMeta | null = null) {
-    if (visitor?.id && adminIds.includes(visitor.id))
+    if (isAdminVisitor(visitor))
         return
     const entry = {
         image,
