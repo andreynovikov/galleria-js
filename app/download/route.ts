@@ -1,27 +1,34 @@
-import { redirect } from 'next/navigation'
 import type { NextRequest } from 'next/server'
 
 import { ZipArchive } from 'archiver'
 
-import Image, { ImageNotFoundError } from '@/lib/image'
+import Image, { ImageNotFoundError, downloadMaxImages } from '@/lib/image'
 import { writeLog } from '@/lib/db'
 import { clientIp, uaMeta, ACTION_DOWNLOAD } from '@/lib/utils'
 import { censorshipLevel, getSession } from '@/auth'
 
+const basePath = process.env.BASE_PATH ?? ''
 const screenMaxWidth = Number(process.env.SCREEN_MAX_WIDTH)
 
 export async function GET(request: NextRequest) {
     const session = await getSession()
 
-    if (!session?.user)
-        redirect('/signin')
+    if (!session?.user) {
+        const callbackUrl = `${basePath}${request.nextUrl.pathname}${request.nextUrl.search}`
+        return Response.redirect(new URL(`${basePath}/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`, request.nextUrl.origin), 307)
+    }
 
     const user = session.user
     const level = censorshipLevel(session)
     const ip = clientIp(request.headers)
     const meta = uaMeta(request.headers)
 
-    const ids = (request.nextUrl.searchParams.get('images') ?? '').split(',').map(Number).filter(id => Number.isInteger(id) && id > 0)
+    const ids = [...new Set((request.nextUrl.searchParams.get('images') ?? '').split(',').map(Number))]
+        .filter(id => Number.isInteger(id) && id > 0)
+    if (ids.length > downloadMaxImages)
+        return new Response(`Too many photos, at most ${downloadMaxImages} can be downloaded at once`, {
+            status: 400
+        })
     const archive = new ZipArchive()
 
     const stream = new ReadableStream({
@@ -60,7 +67,7 @@ export async function GET(request: NextRequest) {
         status: 200,
         headers: new Headers({
             'content-disposition': `attachment; filename=${filename}`,
-            'content-type': 'text/plain'
+            'content-type': 'application/zip'
         })
     })
 }

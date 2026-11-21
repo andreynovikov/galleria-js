@@ -50,6 +50,8 @@ type Thumbnail = Photo & AlbumPhoto
 interface AlbumProps extends LazyComponentProps {
     photos: AlbumPhoto[]
     signedIn: boolean
+    /** Whether to show the button which downloads all photos */
+    downloadable: boolean
     basePath: string
 }
 
@@ -62,7 +64,7 @@ function scrollTo(id: string | null) {
 }
 
 function Album(props: AlbumProps) {
-    const { photos, signedIn, basePath, scrollPosition } = props
+    const { photos, signedIn, downloadable, basePath, scrollPosition } = props
 
     const [index, setIndex] = useState(-1)
 
@@ -236,7 +238,7 @@ function Album(props: AlbumProps) {
                 }
             }}
         />
-        {signedIn && (
+        {downloadable && (
             <div className="download">
                 <button className="button" onClick={handleDownload}>Скачать все фотографии</button>
             </div>

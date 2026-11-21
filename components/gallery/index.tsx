@@ -5,7 +5,7 @@ import Album, { type AlbumPhoto } from '@/components/album'
 import NothingFound from './nothing-found'
 
 import { listImages, resolveLabels } from '@/lib/db'
-import { thumbnailWidths } from '@/lib/image'
+import { downloadMaxImages, thumbnailWidths } from '@/lib/image'
 import { syncBundle } from '@/lib/images'
 import { bool, param, type SearchParams } from '@/lib/utils'
 import { censorshipLevel, getSession, isAdmin } from '@/auth'
@@ -98,7 +98,7 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
             <div className={styles.topMenu}>
                 <Link href="/">Все альбомы</Link>
             </div>
-            <Album photos={photos} signedIn={!!session} basePath={basePath} />
+            <Album photos={photos} signedIn={!!session} downloadable={!!session && photos.length <= downloadMaxImages} basePath={basePath} />
             {gaEvent}
         </>
     )

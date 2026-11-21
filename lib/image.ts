@@ -8,6 +8,8 @@ import { getImageById, getImageByName, addImage, deleteImage, updateImage, getLa
 import type { ImageRecord, ImageUpdate, Label } from './db'
 
 export const thumbnailWidths: Record<string, number> = JSON.parse(process.env.THUMBNAIL_WIDTH as string)
+/** Most photos one album download may contain: each one is resized while the archive is built */
+export const downloadMaxImages = Number(process.env.DOWNLOAD_MAX_IMAGES) || 1000
 
 const photosFolder = process.env.PHOTOS_FOLDER as string
 

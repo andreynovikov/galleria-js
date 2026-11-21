@@ -160,9 +160,13 @@ test.describe('censored photo', () => {
 
 test.describe('album download', () => {
     test('redirects anonymous visitor to sign in', async ({ request }) => {
-        const response = await request.get('/download?images=1', { maxRedirects: 0 })
+        const response = await request.get('/download?images=1,2', { maxRedirects: 0 })
         expect(response.status()).toBe(307)
-        expect(response.headers()['location']).toContain('/signin')
+        const location = new URL(response.headers()['location'])
+        expect(location.pathname).toBe('/signin')
+        const callbackUrl = new URL(location.searchParams.get('callbackUrl') ?? '', location)
+        expect(callbackUrl.pathname).toBe('/download')
+        expect(callbackUrl.searchParams.get('images')).toBe('1,2')
     })
 
     test('returns zip archive of photos', async ({ browser }) => {
@@ -172,10 +176,30 @@ test.describe('album download', () => {
             const response = await context.request.get(`/download?images=${ids.join()}`)
             expect(response.status()).toBe(200)
             expect(response.headers()['content-disposition']).toBe('attachment; filename=images.zip')
+            expect(response.headers()['content-type']).toBe('application/zip')
             const body = await response.body()
             expect(body.subarray(0, 4).toString('latin1')).toBe('PK\x03\x04')
             expect(body.includes('IMG_0101.jpg')).toBe(true)
             expect(body.includes('IMG_0102.jpg')).toBe(true)
+        } finally {
+            await context.close()
+        }
+    })
+
+    test('rejects too many photos', async ({ browser }) => {
+        const context = await browser.newContext({ storageState: asUser })
+        try {
+            const ids = Array.from({ length: 1001 }, (_, i) => i + 1)
+            const response = await context.request.get(`/download?images=${ids.join()}`)
+            expect(response.status()).toBe(400)
+
+            // Repeated ids are counted once
+            const id = await imageId(ARMENIA, 'IMG_0101.jpg')
+            const repeated = await context.request.get(`/download?images=${Array(1001).fill(id).join()}`)
+            expect(repeated.status()).toBe(200)
+            const body = await repeated.body()
+            // Zip archive has each name twice: in the entry header and in the central directory
+            expect(body.toString('latin1').split('IMG_0101.jpg').length - 1).toBe(2)
         } finally {
             await context.close()
         }
