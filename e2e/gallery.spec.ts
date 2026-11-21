@@ -80,3 +80,20 @@ test.describe('gallery', () => {
         expect(response?.status()).toBe(404)
     })
 })
+
+test('pages work under the content security policy', async ({ page }) => {
+    const violations: string[] = []
+    page.on('console', message => {
+        if (message.text().includes('Content Security Policy'))
+            violations.push(message.text())
+    })
+    await page.goto('/')
+    await expect(page.locator('.swiper-slide img').first()).toBeVisible()
+    await page.goto(GEORGIA)
+    await thumbnail(page, await imageId(GEORGIA, 'IMG_0001.jpg')).click()
+    await expect(page.locator('.yarl__slide_current img')).toBeVisible()
+    await page.goto('/signin')
+    await expect(page.getByRole('button', { name: 'Войти через GitHub' })).toBeVisible()
+    expect(violations).toEqual([])
+})
+

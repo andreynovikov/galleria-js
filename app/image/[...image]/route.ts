@@ -1,4 +1,4 @@
-import { createReadStream } from 'fs'
+import { createReadStream, type Stats } from 'fs'
 import { stat } from 'fs/promises'
 import { join } from 'path'
 
@@ -13,6 +13,8 @@ import { bool, clientIp, uaMeta, ACTION_ORIGINAL, ACTION_VIEW, ACTION_EXPORT, AC
 const screenMaxWidth = Number(process.env.SCREEN_MAX_WIDTH)
 const exportMaxWidth = Number(process.env.EXPORT_MAX_WIDTH)
 const screenDelta = Number(process.env.SCREEN_DELTA)
+/** How long browsers and shared caches may use an image without asking again, in seconds */
+const maxAge = 60 * 60
 
 /*
  * https://www.ericburel.tech/blog/nextjs-stream-files#moving-to-route-handlers-its-not-that-easy
@@ -34,6 +36,24 @@ function streamFile(path: string) {
     })
 }
 
+/**
+ * Weak validator of a file and, for images resized on request, of the variant made from it. It changes when the file
+ * is replaced or rewritten (for example, a thumbnail regenerated with `force`).
+ */
+function entityTag(stats: Stats, variant = '') {
+    return `W/"${stats.size.toString(16)}-${Math.floor(stats.mtimeMs).toString(16)}${variant && '-' + variant}"`
+}
+
+/** Whether `If-None-Match` matches the validator, by weak comparison */
+function notModified(ifNoneMatch: string | null, etag: string) {
+    if (ifNoneMatch === null)
+        return false
+    if (ifNoneMatch.trim() === '*')
+        return true
+    const opaque = (tag: string) => tag.trim().replace(/^W\//, '')
+    return ifNoneMatch.split(',').some(tag => opaque(tag) === opaque(etag))
+}
+
 export async function GET(request: NextRequest) {
     const session = await getSession()
     const ip = clientIp(request.headers)
@@ -49,19 +69,14 @@ export async function GET(request: NextRequest) {
     // Regenerating thumbnails is expensive, so only admins may force it
     const force = isAdmin(session) && bool(request.nextUrl.searchParams.get('force'))
     const image = Image.fromPath(request.nextUrl.pathname)
-    let path: string
-    let stream: ReadableStream
-    let size: number
-    let type: string
     let action: number
     let restricted = false
 
     // Check the file first: a missing file has no database record to look up labels for
-    path = join(process.env.PHOTOS_FOLDER as string, request.nextUrl.pathname)
+    const path = join(process.env.PHOTOS_FOLDER as string, request.nextUrl.pathname)
+    let stats: Stats
     try {
-        const stats = await stat(path)
-        size = stats.size
-        type = 'jpeg'
+        stats = await stat(path)
     } catch (e) {
         if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') {
             return new Response('Not found', {
@@ -99,52 +114,55 @@ export async function GET(request: NextRequest) {
         hasRestrictedLabel = labels.some(label => restrictedLabels.includes(label.id))
         restricted = hasRestrictedLabel && !session?.user
     }
-    // Restricted and censored photos are served differently depending on the visitor: shared caches must not
-    // store them, and browsers must not reuse them after signing in or out
     const sessionDependent = hasRestrictedLabel || (image.censored ?? 0) > 0
 
+    // The response body is made only when the browser's copy is outdated: resizing is the expensive part
+    let etag: string
+    let body: () => Promise<{ type: string, size: number, stream: ReadableStream }>
+    const original = async () => ({ type: 'jpeg', size: stats.size, stream: streamFile(path) })
+
     if (format === 'thumbnail') {
-        ({ type, size, path } = await image.makeThumbnail(thumbnailSize, vertical, force, restricted))
-        stream = streamFile(path)
+        const thumbnail = await image.makeThumbnail(thumbnailSize, vertical, force, restricted)
+        etag = entityTag(await stat(thumbnail.path))
+        body = async () => ({ type: thumbnail.type, size: thumbnail.size, stream: streamFile(thumbnail.path) })
         action = restricted ? ACTION_LOCKED : ACTION_THUMBNAIL
+    } else if (format === 'original') {
+        if (restricted)
+            return new Response('Forbidden', {
+                status: 403
+            })
+        etag = entityTag(stats)
+        body = original
+        action = ACTION_ORIGINAL
     } else {
-        if (format === 'original') {
-            if (restricted)
-                return new Response('Forbidden', {
-                    status: 403
-                })
-            stream = streamFile(path)
-            action = ACTION_ORIGINAL
+        let width = screenMaxWidth
+
+        if (format === 'export') {
+            width = exportMaxWidth
+            action = ACTION_EXPORT
         } else {
-            await image.fetchData()
+            action = ACTION_VIEW
+        }
 
-            let width = screenMaxWidth
+        const imageWidth = image.width ?? 0
+        const imageHeight = image.height ?? 0
 
-            if (format === 'export') {
-                width = exportMaxWidth
-                action = ACTION_EXPORT
-            } else {
-                action = ACTION_VIEW
+        if (ratio < 1)
+            width = Math.round(width * ratio)
+        if (imageWidth < imageHeight)
+            width = Math.round(imageWidth / imageHeight * width)
+        width = Math.max(width, 1)
+        if (imageWidth > width * screenDelta || restricted) {
+            etag = entityTag(stats, `${width}${restricted ? '-locked' : ''}`)
+            body = async () => {
+                const { type, size, data } = await image.getResized(width, restricted)
+                return { type, size, stream: new Blob([new Uint8Array(data)]).stream() }
             }
-
-            const imageWidth = image.width ?? 0
-            const imageHeight = image.height ?? 0
-
-            if (ratio < 1)
-                width = Math.round(width * ratio)
-            if (imageWidth < imageHeight)
-                width = Math.round(imageWidth / imageHeight * width)
-            width = Math.max(width, 1)
-            if (imageWidth > width * screenDelta || restricted) {
-                let data: Buffer
-                ({ type, size, data } = await image.getResized(width, restricted))
-                const blob = new Blob([new Uint8Array(data)])
-                stream = blob.stream()
-                if (restricted)
-                    action = ACTION_LOCKED
-            } else {
-                stream = streamFile(path)
-            }
+            if (restricted)
+                action = ACTION_LOCKED
+        } else {
+            etag = entityTag(stats)
+            body = original
         }
     }
 
@@ -153,12 +171,22 @@ export async function GET(request: NextRequest) {
         image.getId().then(id => writeLog(id, action, ip, session?.user, meta))
     })
 
-    return new Response(stream, {
-        status: 200,
-        headers: new Headers({
-            'content-type': 'image/' + type,
-            'content-length': size + '',
-            ...(sessionDependent ? { 'cache-control': 'private', 'vary': 'Cookie' } : {})
-        })
+    // Restricted and censored photos are served differently depending on the visitor: shared caches must not store
+    // them, and browsers must check them every time, so that signing in or out takes effect (the validator differs
+    // between locked and unlocked versions)
+    const headers = new Headers({
+        'etag': etag,
+        'cache-control': sessionDependent ? 'private, no-cache' : `public, max-age=${maxAge}`
     })
+    if (sessionDependent)
+        headers.set('vary', 'Cookie')
+
+    // Views answered from the browser cache are logged too, they are views all the same
+    if (notModified(request.headers.get('if-none-match'), etag))
+        return new Response(null, { status: 304, headers })
+
+    const { type, size, stream } = await body()
+    headers.set('content-type', 'image/' + type)
+    headers.set('content-length', size + '')
+    return new Response(stream, { status: 200, headers })
 }

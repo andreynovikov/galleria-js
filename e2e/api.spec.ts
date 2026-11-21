@@ -60,6 +60,7 @@ test.describe('image URLs', () => {
         const file = join(photosFolder, GEORGIA, 'thumbs', 'ts-IMG_0001.jpg-vertical.webp')
         await image(request, url, 'image/webp')
         const created = (await stat(file)).mtimeMs
+        const etag = (await request.get(url)).headers()['etag']
 
         await image(request, url, 'image/webp')
         expect((await stat(file)).mtimeMs).toBe(created)
@@ -68,6 +69,8 @@ test.describe('image URLs', () => {
         try {
             await image(context.request, url, 'image/webp')
             expect((await stat(file)).mtimeMs).toBeGreaterThan(created)
+            // Browsers see the regenerated thumbnail as changed
+            expect((await request.get(url)).headers()['etag']).not.toBe(etag)
         } finally {
             await context.close()
         }
@@ -127,7 +130,7 @@ test.describe('image URLs', () => {
                     for (const query of ['', '?format=thumbnail&size=s']) {
                         const response = await client.get(`${url}${query}`)
                         expect(response.status(), query).toBe(200)
-                        expect(response.headers()['cache-control'], query).toBe('private')
+                        expect(response.headers()['cache-control'], query).toBe('private, no-cache')
                         expect(response.headers()['vary'], query).toContain('Cookie')
                     }
                 }
@@ -140,9 +143,57 @@ test.describe('image URLs', () => {
     test('of other photos do not depend on visitor', async ({ request }) => {
         const response = await request.get(`${GEORGIA}/IMG_0001.jpg?format=thumbnail&size=s`)
         expect(response.status()).toBe(200)
-        expect(response.headers()['cache-control'] ?? '').not.toContain('private')
+        expect(response.headers()['cache-control']).toBe('public, max-age=3600')
         expect(response.headers()['vary'] ?? '').not.toContain('Cookie')
     })
+
+    test('answer conditional requests', async ({ request }) => {
+        const url = `${GEORGIA}/IMG_0001.jpg`
+        const etags = new Set<string>()
+        for (const query of ['', '?format=original', '?format=export', '?ratio=0.25', '?format=thumbnail&size=s', '?format=thumbnail&size=m']) {
+            const response = await request.get(`${url}${query}`)
+            expect(response.status(), query).toBe(200)
+            const etag = response.headers()['etag']
+            expect(etag, query).toMatch(/^W\/".+"$/)
+            etags.add(etag)
+
+            const cached = await request.get(`${url}${query}`, { headers: { 'if-none-match': etag } })
+            expect(cached.status(), query).toBe(304)
+            expect(cached.headers()['etag'], query).toBe(etag)
+            expect(cached.headers()['cache-control'], query).toBe('public, max-age=3600')
+            expect((await cached.body()).length, query).toBe(0)
+
+            const changed = await request.get(`${url}${query}`, { headers: { 'if-none-match': 'W/"other"' } })
+            expect(changed.status(), query).toBe(200)
+        }
+        // Every variant has its own validator
+        expect(etags.size).toBe(6)
+    })
+
+    test('of restricted photo are revalidated after signing in', async ({ request, browser }) => {
+        const url = `${GEORGIA}/IMG_0003.jpg?format=thumbnail&size=s`
+        const locked = (await request.get(url)).headers()['etag']
+        const context = await browser.newContext({ storageState: asUser })
+        try {
+            const response = await context.request.get(url, { headers: { 'if-none-match': locked } })
+            expect(response.status()).toBe(200)
+            expect(response.headers()['etag']).not.toBe(locked)
+        } finally {
+            await context.close()
+        }
+    })
+})
+
+test('security headers are sent', async ({ request }) => {
+    for (const url of ['/', GEORGIA, `${GEORGIA}/IMG_0001.jpg`]) {
+        const headers = (await request.get(url)).headers()
+        expect(headers['content-security-policy'], url).toContain("frame-ancestors 'self'")
+        expect(headers['content-security-policy'], url).toContain("object-src 'none'")
+        expect(headers['content-security-policy'], url).not.toContain('unsafe-eval')
+        expect(headers['x-frame-options'], url).toBe('SAMEORIGIN')
+        expect(headers['referrer-policy'], url).toBe('strict-origin-when-cross-origin')
+        expect(headers['x-content-type-options'], url).toBe('nosniff')
+    }
 })
 
 test.describe('censored photo', () => {
@@ -174,7 +225,7 @@ test.describe('censored photo', () => {
             for (const query of formats) {
                 const response = await context.request.get(`${url}${query}`)
                 expect(response.status(), query).toBe(200)
-                expect(response.headers()['cache-control'], query).toBe('private')
+                expect(response.headers()['cache-control'], query).toBe('private, no-cache')
                 expect(response.headers()['vary'], query).toContain('Cookie')
             }
         } finally {
