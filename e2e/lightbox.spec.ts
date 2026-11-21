@@ -79,9 +79,9 @@ test.describe('lightbox', () => {
         })
         await page.goto(GEORGIA)
         await thumbnail(page, id).click()
-        await expect(page).toHaveURL(`/api/auth/signin?callbackUrl=${encodeURIComponent(GEORGIA)}`)
-        await expect(page.getByRole('button', { name: 'Sign in with GitHub' })).toBeVisible()
-        // Thumbnail logging (a server action) must not be posted to the sign-in route while the page is leaving
+        await expect(page).toHaveURL(`/signin?callbackUrl=${encodeURIComponent(GEORGIA)}`)
+        await expect(page.getByRole('button', { name: 'Войти через GitHub' })).toBeVisible()
+        // Thumbnail logging (a server action) must not be posted to an auth route while the page is leaving
         expect(misdirected).toEqual([])
     })
 })

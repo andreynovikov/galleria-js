@@ -6,15 +6,15 @@ import { ZipArchive } from 'archiver'
 import Image from '@/lib/image'
 import { writeLog } from '@/lib/db'
 import { clientIp, uaMeta, ACTION_DOWNLOAD } from '@/lib/utils'
-import { auth } from '@/auth'
+import { getSession } from '@/auth'
 
 const screenMaxWidth = Number(process.env.SCREEN_MAX_WIDTH)
 
 export async function GET(request: NextRequest) {
-    const session = await auth()
+    const session = await getSession()
 
     if (!session?.user)
-        redirect('/api/auth/signin')
+        redirect('/signin')
 
     const user = session.user
     const ip = clientIp(request.headers)

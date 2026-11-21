@@ -33,7 +33,7 @@ export default defineConfig({
     webServer: {
         // Production build: closer to what runs in Docker, and the dev server compiles pages too slowly for tests
         command: `npm run build && npm start -- --port ${port}`,
-        url: `${baseURL}/api/auth/providers`,
+        url: `${baseURL}/api/auth/ok`,
         env,
         reuseExistingServer: false,
         timeout: 300_000,

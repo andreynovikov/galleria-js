@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef, type SyntheticEvent } from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { sendGAEvent } from '@next/third-parties/google'
 
 import { MasonryPhotoAlbum, type Photo } from 'react-photo-album'
@@ -72,6 +72,7 @@ function Album(props: AlbumProps) {
 
     const urlRef = useRef<string>(undefined)
     const pathname = usePathname()
+    const router = useRouter()
     const searchParams = useSearchParams()
 
     const setIndexFromHash = (opener: string | null) => {
@@ -104,12 +105,9 @@ function Album(props: AlbumProps) {
         }
     }, [pathname, searchParams])
 
-    // Route handlers are opened with plain browser navigation instead of router.push(): the router would
-    // record them as the current URL, and server actions (thumbnail logging) are posted to that URL
     const signIn = () => {
         const callbackUrl = window.location.href.substring(window.location.origin.length)
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- route handler, not a page
-        window.location.assign(`${basePath}/api/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`)
+        router.push(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`)
     }
 
     const handleThumbnailClick = ({ index }: { index: number }) => {
@@ -142,6 +140,8 @@ function Album(props: AlbumProps) {
             event_category: 'galleria',
             event_label: ids.join()
         })
+        // Route handlers are opened with plain browser navigation instead of router.push(): the router would
+        // fetch the archive once more and record it as the current URL, where server actions would be posted
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- route handler, not a page
         window.location.assign(`${basePath}/download?images=${ids.join()}`)
     }

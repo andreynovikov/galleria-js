@@ -4,7 +4,7 @@ import { join } from 'path'
 
 import { after, type NextRequest } from 'next/server'
 
-import { auth } from '@/auth'
+import { getSession } from '@/auth'
 
 import Image from '@/lib/image'
 import { getRestrictedLabels, writeLog } from '@/lib/db'
@@ -35,7 +35,7 @@ function streamFile(path: string) {
 }
 
 export async function GET(request: NextRequest) {
-    const session = await auth()
+    const session = await getSession()
     const ip = clientIp(request.headers)
     const format = request.nextUrl.searchParams.get('format')
     const ratio = +(request.nextUrl.searchParams.get('ratio') ?? 1.0)

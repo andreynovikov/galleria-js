@@ -1,21 +1,18 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 
-import NextAuth from 'next-auth'
-import authConfig from './auth.config'
-
-const { auth } = NextAuth(authConfig)
+import { getSessionFromHeaders } from './auth'
 
 const basePath = process.env.BASE_PATH ?? ''
 const restrictedLabels = new Set(process.env.RESTRICTED_LABELS?.split(',') ?? [])
 
-export const proxy = auth((request) => {
+export async function proxy(request: NextRequest) {
     if (request.method === 'POST') // Do not intercept next.js requests
         return
     const labels = request.nextUrl.searchParams.get('-filt.labels')?.split(',') ?? []
     if (request.nextUrl.pathname.startsWith('/history') || labels.some(label => restrictedLabels.has(label))) {
-        if (!request.auth) {
+        if (!await getSessionFromHeaders(request.headers)) {
             const callbackUrl = `${basePath}${request.nextUrl.pathname}${request.nextUrl.search}`
-            const url = new URL(`${basePath}/api/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`, request.nextUrl.origin)
+            const url = new URL(`${basePath}/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`, request.nextUrl.origin)
             return Response.redirect(url)
         }
     } else if (request.nextUrl.pathname.toLowerCase().endsWith('.jpg')) {
@@ -23,7 +20,7 @@ export const proxy = auth((request) => {
         url.pathname = '/image' + request.nextUrl.pathname
         return NextResponse.rewrite(url)
     }
-})
+}
 
 export const config = {
     matcher: [

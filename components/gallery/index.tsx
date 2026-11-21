@@ -9,7 +9,7 @@ import { getLabelMaps, listImages } from '@/lib/db'
 import { thumbnailWidths } from '@/lib/image'
 import { syncBundle } from '@/lib/images'
 import { bool, clientIp, param, uaMeta, type SearchParams } from '@/lib/utils'
-import { auth } from '@/auth'
+import { getSession } from '@/auth'
 
 import GaEvent from './ga-event'
 import styles from './gallery.module.scss'
@@ -29,7 +29,7 @@ interface GalleryProps {
 }
 
 export default async function Gallery({ bundle, searchParams }: GalleryProps) {
-    const session = await auth()
+    const session = await getSession()
     const header = await headers()
     const meta = uaMeta(header)
     const ip = clientIp(header)

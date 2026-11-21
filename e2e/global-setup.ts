@@ -2,9 +2,8 @@ import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import postgres from 'postgres'
-import { encode } from 'next-auth/jwt'
 
-import { authDir, baseURL, dataDir, env, fixturesFolder, photosFolder, users } from './env'
+import { authDir, dataDir, env, fixturesFolder, photosFolder, users } from './env'
 import { bundles } from './helpers'
 
 const root = join(__dirname, '..')
@@ -58,31 +57,41 @@ async function syncBundles() {
     }
 }
 
-/** Creates Playwright storage states with forged Auth.js session cookies */
+/**
+ * Creates Playwright storage states with Better Auth session cookies. They are made by a separate auth instance
+ * with the app options (so cookie names and encryption match), which can sign in users without OAuth.
+ */
 async function createSessions() {
+    const { betterAuth } = await import('better-auth')
+    const { testUtils } = await import('better-auth/plugins')
+    const { authOptions } = await import('../auth')
+    const testAuth = betterAuth({
+        ...authOptions,
+        // The app sets visitor fields in a session hook, test sessions get them directly
+        databaseHooks: undefined,
+        // Cookie names depend on base URL: `__Secure-` prefix is used for https and, when it is not set, in production
+        secret: env.AUTH_SECRET,
+        baseURL: env.BETTER_AUTH_URL,
+        plugins: [...authOptions.plugins, testUtils()]
+    })
+    const { test } = await testAuth.$context
+
     await mkdir(authDir, { recursive: true })
-    const cookieName = 'authjs.session-token' // not __Secure- prefixed, because tests run over plain HTTP
     for (const [key, user] of Object.entries(users)) {
-        const visitor = { id: user.id, provider: user.provider, censorship: user.censorship, name: user.name, email: user.email }
-        const value = await encode({
-            salt: cookieName,
-            secret: env.AUTH_SECRET,
-            // The same token as created by `jwt` callback in auth.ts
-            token: { name: user.name, email: user.email, sub: user.id, visitor }
+        const saved = await test.saveUser(test.createUser({ name: user.name, email: user.email }))
+        const { headers, cookies } = await test.login({
+            userId: saved.id,
+            session: { visitorId: user.id, provider: user.provider, censorship: user.censorship }
         })
-        const state = {
-            cookies: [{
-                name: cookieName,
-                value,
-                domain: new URL(baseURL).hostname,
-                path: '/',
-                expires: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
-                httpOnly: true,
-                secure: false,
-                sameSite: 'Lax' as const
-            }],
-            origins: []
-        }
+        // Stateless sessions are read from the encrypted `session_data` cookie, which is set by getSession
+        const response = await testAuth.api.getSession({ headers, returnHeaders: true })
+        const sessionData = response.headers.getSetCookie()
+            .map(cookie => cookie.split(';')[0].split('='))
+            .filter(([name]) => name.includes('session_data'))
+            .map(([name, ...value]) => ({ ...cookies[0], name, value: value.join('=') }))
+        if (sessionData.length === 0)
+            throw new Error('Better Auth did not set session_data cookie')
+        const state = { cookies: [...cookies, ...sessionData], origins: [] }
         await writeFile(join(authDir, `${key}.json`), JSON.stringify(state, null, 2))
     }
 }

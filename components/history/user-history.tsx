@@ -4,7 +4,7 @@ import moment, { type Moment } from 'moment'
 
 import { getUserLog, type UserLogFilters, type UserLogImage } from '@/lib/db'
 import { param } from '@/lib/utils'
-import { auth } from '@/auth'
+import { getSession } from '@/auth'
 
 const adminIds = process.env.ADMIN_ID?.split(',') ?? []
 const basePath = process.env.BASE_PATH ?? ''
@@ -28,9 +28,9 @@ interface Day {
 export default async function UserHistory(props: PageProps<'/history/[ip]'> | PageProps<'/history/[ip]/[day]'>) {
     const params: { ip: string, day?: string } = await props.params
     const searchParams = await props.searchParams
-    const session = await auth()
+    const session = await getSession()
     if (!session?.user?.id || !adminIds.includes(session.user.id))
-        redirect('/api/auth/signin')
+        redirect('/signin')
 
     const filters: UserLogFilters = {
         ip: decodeURIComponent(params.ip),

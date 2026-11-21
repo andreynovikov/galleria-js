@@ -4,13 +4,13 @@ import { getRandomImages } from '@/lib/db'
 import { thumbnailWidths } from '@/lib/image'
 import { clientIp, uaMeta } from '@/lib/utils'
 
-import { auth } from '@/auth'
+import { getSession } from '@/auth'
 import PhotoSwiper, { type SwiperPhoto } from './swiper'
 
 const basePath = process.env.BASE_PATH ?? ''
 
 export default async function Top() {
-    const session = await auth()
+    const session = await getSession()
     const header = await headers()
     const meta = uaMeta(header)
     const ip = clientIp(header)

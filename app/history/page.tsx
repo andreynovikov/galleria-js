@@ -6,7 +6,7 @@ import moment, { type Moment } from 'moment'
 
 import { getLogUsers, type LogUser } from '@/lib/db'
 import { param } from '@/lib/utils'
-import { auth } from '@/auth'
+import { getSession } from '@/auth'
 
 const adminIds = process.env.ADMIN_ID?.split(',') ?? []
 
@@ -20,9 +20,9 @@ interface Day {
 
 export default async function History(props: PageProps<'/history'>) {
     const searchParams = await props.searchParams
-    const session = await auth()
+    const session = await getSession()
     if (!session?.user?.id || !adminIds.includes(session.user.id))
-        redirect('/api/auth/signin')
+        redirect('/signin')
 
     const filters = {
         from: moment(param(searchParams, '-filt.from') ?? moment().subtract(3, 'months')).toDate(),

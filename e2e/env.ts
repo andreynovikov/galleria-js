@@ -39,9 +39,9 @@ export const env: Record<string, string> = {
     PHOTOS_FOLDER: photosFolder,
     RESTRICTED_LABELS: 'Private',
     ADMIN_ID: users.admin.id,
-    AUTH_SECRET: 'e2e-secret-which-is-used-only-in-tests',
-    AUTH_TRUST_HOST: 'true',
-    AUTH_URL: `${baseURL}/api/auth`,
+    // Test-only secret, random enough to not trigger Better Auth entropy warning
+    AUTH_SECRET: 'e2e-7f3c9a1d5b8e2f6a0c4d9b7e1a3f5c8d2b6e0a4f',
+    BETTER_AUTH_URL: baseURL,
     // Providers are never contacted, but they need some configuration to be listed on the sign-in page
     AUTH_GITHUB_ID: 'e2e', AUTH_GITHUB_SECRET: 'e2e',
     AUTH_GOOGLE_ID: 'e2e', AUTH_GOOGLE_SECRET: 'e2e',
