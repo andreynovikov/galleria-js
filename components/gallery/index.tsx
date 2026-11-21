@@ -1,4 +1,3 @@
-import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 
@@ -8,7 +7,7 @@ import NothingFound from './nothing-found'
 import { listImages, resolveLabels } from '@/lib/db'
 import { thumbnailWidths } from '@/lib/image'
 import { syncBundle } from '@/lib/images'
-import { bool, clientIp, param, uaMeta, type SearchParams } from '@/lib/utils'
+import { bool, param, type SearchParams } from '@/lib/utils'
 import { censorshipLevel, getSession } from '@/auth'
 
 import GaEvent from './ga-event'
@@ -30,9 +29,6 @@ interface GalleryProps {
 
 export default async function Gallery({ bundle, searchParams }: GalleryProps) {
     const session = await getSession()
-    const header = await headers()
-    const meta = uaMeta(header)
-    const ip = clientIp(header)
 
     const labelsParam = param(searchParams, '-filt.labels')
     const labels = labelsParam !== undefined ? await resolveLabels(labelsParam.split(',')) : undefined
@@ -101,7 +97,7 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
             <div className={styles.topMenu}>
                 <Link href="/">Все альбомы</Link>
             </div>
-            <Album photos={photos} ip={ip} user={session?.user} meta={meta} basePath={basePath} />
+            <Album photos={photos} signedIn={!!session} basePath={basePath} />
             {gaEvent}
         </>
     )

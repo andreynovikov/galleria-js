@@ -24,9 +24,7 @@ import 'yet-another-react-lightbox/styles.css'
 import './album.css'
 import './lightbox.css'
 
-import { log } from '@/lib/actions'
-import type { LogMeta, VisitorRef } from '@/lib/db'
-import { ACTION_ZOOM, ACTION_THUMBNAIL, ACTION_LOCKED, ACTION_INFO } from '@/lib/utils'
+import { logView, logZoom } from '@/lib/actions'
 
 export interface ImageSource {
     src: string
@@ -51,9 +49,7 @@ type Thumbnail = Photo & AlbumPhoto
 
 interface AlbumProps extends LazyComponentProps {
     photos: AlbumPhoto[]
-    ip: string
-    user?: VisitorRef
-    meta: LogMeta
+    signedIn: boolean
     basePath: string
 }
 
@@ -66,7 +62,7 @@ function scrollTo(id: string | null) {
 }
 
 function Album(props: AlbumProps) {
-    const { photos, ip, user, meta, basePath, scrollPosition } = props
+    const { photos, signedIn, basePath, scrollPosition } = props
 
     const [index, setIndex] = useState(-1)
 
@@ -111,14 +107,14 @@ function Album(props: AlbumProps) {
     }
 
     const handleThumbnailClick = ({ index }: { index: number }) => {
-        if (photos[index].restricted && user?.id === undefined)
+        if (photos[index].restricted && !signedIn)
             signIn()
         else
             setIndex(index)
     }
 
     const handleZoom = (zoom: number) => {
-        log(photos[index].id, ACTION_ZOOM, ip, user, { zoom, ...meta })
+        logZoom(photos[index].id, zoom)
         sendGAEvent('event', 'zoom_photo', {
             event_category: 'galleria',
             event_label: photos[index].src,
@@ -129,9 +125,9 @@ function Album(props: AlbumProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleDebouncedZoom = useMemo(() => debounce(handleZoom, 1000), [photos, index])
 
-    const handleImageLoad = async (event: SyntheticEvent<HTMLImageElement>, photo: Thumbnail) => {
+    // Thumbnail views are logged by the image route
+    const handleImageLoad = (event: SyntheticEvent<HTMLImageElement>) => {
         event.currentTarget.classList.add('lazyloaded')
-        log(photo.id, photo.restricted ? ACTION_LOCKED : ACTION_THUMBNAIL, ip, user, meta)
     }
 
     const handleDownload = () => {
@@ -179,13 +175,13 @@ function Album(props: AlbumProps) {
                         {...props}
                         id={`thumbnail-${photo.id}`} />
                 ),
-                image: (props, { photo }) => (
+                image: (props) => (
                     <LazyLoadImage
                         {...props}
                         className={props.className}
                         scrollPosition={scrollPosition}
                         threshold={0}
-                        onLoad={(e) => handleImageLoad(e, photo)} />
+                        onLoad={handleImageLoad} />
                 )
             }} />
         <Lightbox
@@ -205,7 +201,7 @@ function Album(props: AlbumProps) {
                         window.history.replaceState({ view: photos[currentIndex].id }, '', location)
                     else
                         window.history.pushState({ view: photos[currentIndex].id }, '', location)
-                    await log(photos[currentIndex].id, ACTION_INFO, ip, user, meta)
+                    await logView(photos[currentIndex].id)
                     sendGAEvent('event', 'view_photo', {
                         event_category: 'galleria',
                         event_label: photos[currentIndex].src
@@ -240,7 +236,7 @@ function Album(props: AlbumProps) {
                 }
             }}
         />
-        {user?.id && (
+        {signedIn && (
             <div className="download">
                 <button className="button" onClick={handleDownload}>Скачать все фотографии</button>
             </div>

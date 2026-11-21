@@ -1,8 +1,5 @@
-import { headers } from 'next/headers'
-
 import { getRandomImages } from '@/lib/db'
 import { thumbnailWidths } from '@/lib/image'
-import { clientIp, uaMeta } from '@/lib/utils'
 
 import { censorshipLevel, getSession } from '@/auth'
 import PhotoSwiper, { type SwiperPhoto } from './swiper'
@@ -11,9 +8,6 @@ const basePath = process.env.BASE_PATH ?? ''
 
 export default async function Top() {
     const session = await getSession()
-    const header = await headers()
-    const meta = uaMeta(header)
-    const ip = clientIp(header)
 
     const images = await getRandomImages(20, censorshipLevel(session))
 
@@ -33,5 +27,5 @@ export default async function Top() {
         }
     ))
 
-    return <PhotoSwiper photos={photos} ip={ip} user={session?.user} meta={meta} />
+    return <PhotoSwiper photos={photos} />
 }

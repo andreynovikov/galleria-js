@@ -12,9 +12,6 @@ import 'swiper/css/free-mode'
 
 import styles from './swiper.module.css'
 
-import { log } from '@/lib/actions'
-import type { LogMeta, VisitorRef } from '@/lib/db'
-import { ACTION_THUMBNAIL, ACTION_LOCKED } from '@/lib/utils'
 
 export interface SwiperPhoto {
     id: number
@@ -28,15 +25,12 @@ export interface SwiperPhoto {
 
 interface PhotoSwiperProps {
     photos: SwiperPhoto[]
-    ip: string
-    user?: VisitorRef
-    meta: LogMeta
 }
 
-export default function PhotoSwiper({ photos, ip, user, meta }: PhotoSwiperProps) {
-    const handleImageLoad = async (event: SyntheticEvent<HTMLImageElement>, photo: SwiperPhoto) => {
+export default function PhotoSwiper({ photos }: PhotoSwiperProps) {
+    // Thumbnail views are logged by the image route
+    const handleImageLoad = (event: SyntheticEvent<HTMLImageElement>) => {
         event.currentTarget.classList.add(styles.lazyloaded)
-        log(photo.id, photo.restricted ? ACTION_LOCKED : ACTION_THUMBNAIL, ip, user, meta)
     }
 
     return (
@@ -59,7 +53,7 @@ export default function PhotoSwiper({ photos, ip, user, meta }: PhotoSwiperProps
                                 unoptimized
                                 alt={photo.title}
                                 className={styles.image}
-                                onLoad={(e) => handleImageLoad(e, photo)} />
+                                onLoad={handleImageLoad} />
                         </Link>
                     </SwiperSlide>
                 ))}

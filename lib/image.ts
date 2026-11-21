@@ -23,11 +23,12 @@ export interface ExifInfo {
     [key: string]: unknown
 }
 
-/** Plain (serialized) representation of an expanded image, as returned to client components */
-export interface ImageInfo extends Partial<ImageRecord> {
+/** Photo description shown in the lightbox (returned by the `getImage` action) */
+export interface ImageInfo {
     id: number
+    description?: string | null
     labels?: Label[]
-    info?: ExifInfo
+    info?: Pick<ExifInfo, 'FocalLength' | 'ISO' | 'ExposureTime' | 'FNumber'>
 }
 
 /** Exifr keeps an opened file handle which is not exposed in its type definitions */
@@ -49,6 +50,7 @@ export default class Image implements Partial<ImageRecord> {
     width?: number
     height?: number
     censored?: number
+    description?: string | null
     ctime?: Date | null
     path?: string
     labels?: Label[]
@@ -127,12 +129,14 @@ export default class Image implements Partial<ImageRecord> {
         if (this.info)
             return
 
-        await this.fetchLabels()
+        if (this.labels === undefined)
+            await this.fetchLabels()
 
+        // Only camera settings are read, the description comes from the database
         const exr = new Exifr({
             tiff: true,
             xmp: false,
-            iptc: true,
+            iptc: false,
             exif: true,
             gps: false,
             translateValues: false
@@ -140,12 +144,6 @@ export default class Image implements Partial<ImageRecord> {
         await exr.read(path)
         this.info = await exr.parse()
         await closeExifr(exr)
-    }
-
-    toJSON(): ImageInfo {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { fetched, ...data } = this
-        return data as ImageInfo
     }
 
     async setLabels(labelNames: string[]) {
