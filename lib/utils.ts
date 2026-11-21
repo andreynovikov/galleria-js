@@ -20,6 +20,13 @@ export function param(searchParams: SearchParams, key: string) {
     return Array.isArray(value) ? value[0] : value
 }
 
+/** Query string of the page, without `?` */
+export function queryString(searchParams: SearchParams) {
+    return Object.entries(searchParams).flatMap(([key, value]) => (
+        ([] as string[]).concat(value ?? []).map(v => `${encodeURIComponent(key)}=${encodeURIComponent(v)}`)
+    )).join('&')
+}
+
 export function bool(value: unknown) {
     return value === true || Number(value) > 0 || ['true', '1', 'yes'].includes(String(value).toLowerCase().trim())
 }

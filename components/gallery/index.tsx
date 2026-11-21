@@ -1,13 +1,13 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 
 import Album, { type AlbumPhoto } from '@/components/album'
 import NothingFound from './nothing-found'
 
-import { listImages, resolveLabels } from '@/lib/db'
+import { getRestrictedLabels, listImages, resolveLabels } from '@/lib/db'
 import { downloadMaxImages, thumbnailWidths } from '@/lib/image'
 import { syncBundle } from '@/lib/images'
-import { bool, param, type SearchParams } from '@/lib/utils'
+import { bool, param, queryString, type SearchParams } from '@/lib/utils'
 import { censorshipLevel, getSession, isAdmin } from '@/auth'
 
 import GaEvent from './ga-event'
@@ -32,6 +32,17 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
 
     const labelsParam = param(searchParams, '-filt.labels')
     const labels = labelsParam !== undefined ? await resolveLabels(labelsParam.split(',')) : undefined
+    const query = queryString(searchParams)
+
+    // Filtering by restricted label requires signing in. It is checked after resolving labels, because they can be
+    // given both by name and by id.
+    if (!session && labels !== undefined && labels.length > 0) {
+        const restrictedLabels = await getRestrictedLabels()
+        if (labels.some(label => restrictedLabels.includes(label))) {
+            const callbackUrl = `${basePath}${bundle ?? '/'}?${query}`
+            redirect(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`)
+        }
+    }
     const notlabels = param(searchParams, '-filt.notlabels')?.split(',').map(Number).filter(l => l > 0)
     const from = parseDate(param(searchParams, '-filt.from'))
     const till = parseDate(param(searchParams, '-filt.till'))
@@ -85,10 +96,7 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
 
     let gaEvent = null
     if (process.env.GOOGLE_ANALYTICS_ID) {
-        const params = Object.entries(searchParams).map(([key, value]) => (
-            ([] as string[]).concat(value ?? []).map(v => `${encodeURIComponent(key)}=${encodeURIComponent(v)}`
-        ))).flat().join('&')
-        const path = `${bundle ?? '/'}${params && '?'}${params}`
+        const path = `${bundle ?? '/'}${query && '?'}${query}`
 
         gaEvent = <GaEvent event="list_photos" label={path} value={photos.length} />
     }

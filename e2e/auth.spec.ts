@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 
 import { expect, test } from '@playwright/test'
 
-import { ARMENIA, GEORGIA, asUser, asViewer, description, imageId, lightbox, thumbnail, thumbnails } from './helpers'
+import { ARMENIA, GEORGIA, asUser, asViewer, description, imageId, labelId, lightbox, thumbnail, thumbnails } from './helpers'
 
 test.describe('anonymous visitor', () => {
     test('is asked to sign in to see history', async ({ page }) => {
@@ -15,6 +15,14 @@ test.describe('anonymous visitor', () => {
     test('is asked to sign in to filter by restricted label', async ({ page }) => {
         await page.goto('/?-filt.labels=Private')
         await expect(page).toHaveURL(`/signin?callbackUrl=${encodeURIComponent('/?-filt.labels=Private')}`)
+    })
+
+    test('is asked to sign in to filter by restricted label id', async ({ page }) => {
+        const id = await labelId('Private')
+        for (const path of [`/?-filt.labels=${id}`, `${GEORGIA}?-filt.labels=${id}`]) {
+            await page.goto(path)
+            await expect(page).toHaveURL(`/signin?callbackUrl=${encodeURIComponent(path)}`)
+        }
     })
 
     test.describe('signing in', () => {
