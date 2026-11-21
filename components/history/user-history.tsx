@@ -4,9 +4,8 @@ import moment, { type Moment } from 'moment'
 
 import { getUserLog, type UserLogFilters, type UserLogImage } from '@/lib/db'
 import { param } from '@/lib/utils'
-import { getSession } from '@/auth'
+import { getSession, isAdmin } from '@/auth'
 
-const adminIds = process.env.ADMIN_ID?.split(',') ?? []
 const basePath = process.env.BASE_PATH ?? ''
 
 type HistoryImage = Omit<UserLogImage, 'meta'> & { meta: { zoom?: number } }
@@ -29,7 +28,7 @@ export default async function UserHistory(props: PageProps<'/history/[ip]'> | Pa
     const params: { ip: string, day?: string } = await props.params
     const searchParams = await props.searchParams
     const session = await getSession()
-    if (!session?.user?.id || !adminIds.includes(session.user.id))
+    if (!isAdmin(session))
         redirect('/signin')
 
     const filters: UserLogFilters = {

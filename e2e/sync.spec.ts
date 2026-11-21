@@ -4,10 +4,10 @@ import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 
 import { fixturesFolder, photosFolder } from './env'
-import { ARMENIA, GEORGIA, description, imageId, thumbnail, thumbnails } from './helpers'
+import { ARMENIA, GEORGIA, asAdmin, description, imageId, thumbnail, thumbnails } from './helpers'
 
 test.describe('album sync', () => {
-    test('picks up added, changed and removed files', async ({ page }, testInfo) => {
+    test('picks up added, changed and removed files', async ({ page, browser }, testInfo) => {
         // Unique album per test run; files have no labels so other tests are not affected
         const bundle = `/sync-${testInfo.project.name}-${testInfo.repeatEachIndex}`
         const folder = join(photosFolder, bundle)
@@ -24,12 +24,22 @@ test.describe('album sync', () => {
             await page.reload()
             await expect(thumbnails(page)).toHaveCount(2)
 
-            // Metadata is re-read only when requested
+            // Metadata is re-read only when an admin requests it
             await copyFile(join(fixturesFolder, 'extra', 'updated.jpg'), join(folder, 'a.jpg'))
             const id = await imageId(bundle, 'a.jpg')
             await page.goto(`${bundle}?updatemetadata=1`)
             await thumbnail(page, id).click()
-            await expect(description(page).locator('.title')).toHaveText('Обновлённое описание')
+            await expect(description(page).locator('.title')).toHaveText('Без тегов')
+
+            const admin = await browser.newContext({ storageState: asAdmin })
+            try {
+                const adminPage = await admin.newPage()
+                await adminPage.goto(`${bundle}?updatemetadata=1`)
+                await thumbnail(adminPage, id).click()
+                await expect(description(adminPage).locator('.title')).toHaveText('Обновлённое описание')
+            } finally {
+                await admin.close()
+            }
 
             await rm(join(folder, 'b.jpg'))
             await page.goto(bundle)

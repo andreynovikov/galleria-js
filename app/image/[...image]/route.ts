@@ -4,7 +4,7 @@ import { join } from 'path'
 
 import { after, type NextRequest } from 'next/server'
 
-import { censorshipLevel, getSession } from '@/auth'
+import { censorshipLevel, getSession, isAdmin } from '@/auth'
 
 import Image, { ImageNotFoundError } from '@/lib/image'
 import { getRestrictedLabels, writeLog } from '@/lib/db'
@@ -38,10 +38,16 @@ export async function GET(request: NextRequest) {
     const session = await getSession()
     const ip = clientIp(request.headers)
     const format = request.nextUrl.searchParams.get('format')
-    const ratio = +(request.nextUrl.searchParams.get('ratio') ?? 1.0)
+    const ratioParam = request.nextUrl.searchParams.get('ratio')
+    const ratio = ratioParam === null ? 1 : Number(ratioParam)
+    if (!(ratio > 0 && ratio <= 1))
+        return new Response('Bad request', {
+            status: 400
+        })
     const thumbnailSize = request.nextUrl.searchParams.get('size') ?? 'm'
     const vertical = request.nextUrl.searchParams.get('constraint') === 'vertical'
-    const force = bool(request.nextUrl.searchParams.get('force'))
+    // Regenerating thumbnails is expensive, so only admins may force it
+    const force = isAdmin(session) && bool(request.nextUrl.searchParams.get('force'))
     const image = Image.fromPath(request.nextUrl.pathname)
     let path: string
     let stream: ReadableStream
@@ -122,6 +128,7 @@ export async function GET(request: NextRequest) {
                 width = Math.round(width * ratio)
             if (imageWidth < imageHeight)
                 width = Math.round(imageWidth / imageHeight * width)
+            width = Math.max(width, 1)
             if (imageWidth > width * screenDelta || restricted) {
                 let data: Buffer
                 ({ type, size, data } = await image.getResized(width, restricted))

@@ -8,7 +8,7 @@ import { listImages, resolveLabels } from '@/lib/db'
 import { thumbnailWidths } from '@/lib/image'
 import { syncBundle } from '@/lib/images'
 import { bool, param, type SearchParams } from '@/lib/utils'
-import { censorshipLevel, getSession } from '@/auth'
+import { censorshipLevel, getSession, isAdmin } from '@/auth'
 
 import GaEvent from './ga-event'
 import styles from './gallery.module.css'
@@ -43,7 +43,8 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
 
     if (bundle && labels === undefined && notlabels === undefined && censoredParam === undefined) {
         try {
-            const shouldUpdateMetadata = bool(param(searchParams, 'updatemetadata'))
+            // Re-reading metadata of the whole album is expensive, so only admins may ask for it
+            const shouldUpdateMetadata = isAdmin(session) && bool(param(searchParams, 'updatemetadata'))
             await syncBundle(bundle, shouldUpdateMetadata)
         } catch (e) {
             if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') {

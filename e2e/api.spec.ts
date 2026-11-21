@@ -1,11 +1,11 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { expect, test, type APIRequestContext } from '@playwright/test'
 import sharp from 'sharp'
 
-import { fixturesFolder } from './env'
-import { ARMENIA, FAMILY, GEORGIA, asUser, asViewer, imageId } from './helpers'
+import { fixturesFolder, photosFolder } from './env'
+import { ARMENIA, FAMILY, GEORGIA, asAdmin, asUser, asViewer, imageId } from './helpers'
 
 async function image(request: APIRequestContext, url: string, type = 'image/jpeg') {
     const response = await request.get(url)
@@ -52,6 +52,37 @@ test.describe('image URLs', () => {
         // Cached thumbnail is served on the second request
         const cached = await image(request, `${GEORGIA}/IMG_0001.jpg?format=thumbnail&size=s`, 'image/webp')
         expect(cached.body.equals(small.body)).toBe(true)
+    })
+
+    test('regenerate thumbnail on force only for admin', async ({ request, browser }) => {
+        // A size no other test requests, so rewriting it does not affect them
+        const url = `${GEORGIA}/IMG_0001.jpg?format=thumbnail&size=s&constraint=vertical&force=1`
+        const file = join(photosFolder, GEORGIA, 'thumbs', 'ts-IMG_0001.jpg-vertical.webp')
+        await image(request, url, 'image/webp')
+        const created = (await stat(file)).mtimeMs
+
+        await image(request, url, 'image/webp')
+        expect((await stat(file)).mtimeMs).toBe(created)
+
+        const context = await browser.newContext({ storageState: asAdmin })
+        try {
+            await image(context.request, url, 'image/webp')
+            expect((await stat(file)).mtimeMs).toBeGreaterThan(created)
+        } finally {
+            await context.close()
+        }
+    })
+
+    test('serve screen image scaled by ratio', async ({ request }) => {
+        const { width } = await image(request, `${GEORGIA}/IMG_0001.jpg?ratio=0.5`)
+        expect(width).toBe(600)
+    })
+
+    test('reject invalid ratio', async ({ request }) => {
+        for (const ratio of ['0', '-1', '2', 'abc', 'Infinity', '']) {
+            const response = await request.get(`${GEORGIA}/IMG_0001.jpg?ratio=${ratio}`)
+            expect(response.status(), ratio).toBe(400)
+        }
     })
 
     test('return 404 for missing file', async ({ request }) => {

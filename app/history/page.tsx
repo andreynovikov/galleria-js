@@ -6,9 +6,8 @@ import moment, { type Moment } from 'moment'
 
 import { getLogUsers, type LogUser } from '@/lib/db'
 import { param } from '@/lib/utils'
-import { getSession } from '@/auth'
+import { getSession, isAdmin } from '@/auth'
 
-const adminIds = process.env.ADMIN_ID?.split(',') ?? []
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -21,7 +20,7 @@ interface Day {
 export default async function History(props: PageProps<'/history'>) {
     const searchParams = await props.searchParams
     const session = await getSession()
-    if (!session?.user?.id || !adminIds.includes(session.user.id))
+    if (!isAdmin(session))
         redirect('/signin')
 
     const filters = {

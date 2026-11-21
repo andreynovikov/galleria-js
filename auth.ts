@@ -178,6 +178,13 @@ export async function getSessionFromHeaders(headers: Headers): Promise<Session |
 /** Signed-in visitor of the current request (in server components and route handlers) */
 export const getSession = cache(async () => getSessionFromHeaders(await headers()))
 
+const adminIds = process.env.ADMIN_ID?.split(',') ?? []
+
+/** Whether the visitor is listed in `ADMIN_ID` */
+export function isAdmin(session: Session | null) {
+    return !!session?.user.id && adminIds.includes(session.user.id)
+}
+
 /** Highest `image.censored` value the visitor may see: anonymous visitors see only uncensored photos */
 export function censorshipLevel(session: Session | null) {
     return session?.user.censorship ?? 0
