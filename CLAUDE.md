@@ -58,6 +58,7 @@ Running the app needs a PostgreSQL database with `sql/schema.sql` applied. The c
 
 - All sources are TypeScript (`allowJs: false`). Read query strings with `param()` from [lib/utils.ts](lib/utils.ts), because any `searchParams` value can be an array.
 - Client components may import types from `@/lib/db` or `@/lib/image`, but only with `import type`.
+- In client code, open route handlers (`/api/auth/signin`, `/download`) with `window.location.assign()`, not `router.push()`. The router fetches route handlers once more before navigating, which builds a download archive twice. It also records the URL as current while the page is still open, so server actions such as thumbnail `log()` get posted to the route handler (Auth.js reports `MissingCSRF`). `BASE_PATH` isn't available in client code, so prefix such URLs with a `basePath` prop passed from the server component.
 - Import from the project root with the `@/` alias (for example `@/lib/db`).
 - Style with SCSS. Component styles use either `*.module.scss` or plain `.scss`, compiled by Turbopack. There is no webpack config; with one present, `next build` fails.
 - `exifr` is listed in `serverExternalPackages` because it loads `fs` with a dynamic `require()` that breaks once bundled. A build warning "Couldn't load fs" means this has regressed.

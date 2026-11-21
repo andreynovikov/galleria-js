@@ -72,8 +72,16 @@ test.describe('lightbox', () => {
 
     test('restricted photo asks anonymous visitor to sign in', async ({ page }) => {
         const id = await imageId(GEORGIA, 'IMG_0003.jpg')
+        const misdirected: string[] = []
+        page.on('request', request => {
+            if (request.method() === 'POST' && new URL(request.url()).pathname.startsWith('/api/'))
+                misdirected.push(request.url())
+        })
         await page.goto(GEORGIA)
         await thumbnail(page, id).click()
         await expect(page).toHaveURL(`/api/auth/signin?callbackUrl=${encodeURIComponent(GEORGIA)}`)
+        await expect(page.getByRole('button', { name: 'Sign in with GitHub' })).toBeVisible()
+        // Thumbnail logging (a server action) must not be posted to the sign-in route while the page is leaving
+        expect(misdirected).toEqual([])
     })
 })

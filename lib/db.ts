@@ -314,10 +314,8 @@ export async function getRandomImages(limit: number) {
         ` : sql``}
       FROM (
         SELECT p.min_id + trunc(random() * p.id_span)::integer AS id
-        FROM params p, generate_series(1, ${Math.round(limit * 1.2 - 9)}) g
+        FROM params p, generate_series(1, ${Math.round(limit * 1.2)}) g
         GROUP BY 1
-        UNION
-        SELECT id FROM (VALUES (2796), (192), (2738), (654), (3145), (1673), (605), (1480), (2644)) AS ids(id)
       ) r
       JOIN image USING (id)
       ${hasRestricted ? sql`

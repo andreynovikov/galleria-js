@@ -105,7 +105,7 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
             <div className={styles.topMenu}>
                 <Link href="/">Все альбомы</Link>
             </div>
-            <Album photos={photos} ip={ip} user={session?.user} meta={meta} />
+            <Album photos={photos} ip={ip} user={session?.user} meta={meta} basePath={basePath} />
             {gaEvent}
         </>
     )

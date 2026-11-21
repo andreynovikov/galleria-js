@@ -17,12 +17,6 @@ export default async function Top() {
 
     const images = await getRandomImages(20)
 
-    if (!images.at(0)?.restricted) {
-        const restricted = images.findIndex(image => image.restricted)
-        if (restricted > 0)
-            images.splice(0, 0, images.splice(restricted, 1)[0])
-    }
-
     const sid = session?.user?.id ?? ''
     const sizes = Object.keys(thumbnailWidths)
     const maxHeight = Object.values(thumbnailWidths).at(-1) as number

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { ARMENIA, FAMILY, GEORGIA, labelId, thumbnail, thumbnails } from './helpers'
+import { ARMENIA, FAMILY, GEORGIA, db, labelId, thumbnail, thumbnails } from './helpers'
 
 function tag(page: Page, name: string) {
     // Related labels are prefixed with "+"
@@ -33,11 +33,21 @@ test.describe('landing page', () => {
     })
 
     test('random photo opens its album', async ({ page }) => {
+        // Random photos include censored ones (censored <= 1), but albums show them only to signed-in visitors
+        const censored = (await db()<{ id: number }[]>`SELECT id FROM image WHERE censored > 0`).map(row => row.id)
+
         await page.goto('/')
-        const link = page.locator('.swiper-slide a').first()
-        const href = await link.getAttribute('href') ?? ''
-        const opener = Number(new URL(href, 'http://localhost').searchParams.get('opener'))
-        await link.click()
+        const slides = page.locator('.swiper-slide a')
+        await expect(slides.first()).toBeVisible()
+        let link, href = '', opener = 0
+        for (link of await slides.all()) {
+            href = await link.getAttribute('href') ?? ''
+            opener = Number(new URL(href, 'http://localhost').searchParams.get('opener'))
+            if (!censored.includes(opener))
+                break
+        }
+        expect(censored).not.toContain(opener)
+        await link!.click()
         await expect(page).toHaveURL(href)
         await expect(thumbnail(page, opener)).toBeVisible()
     })

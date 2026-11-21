@@ -48,9 +48,17 @@ test.describe('signed-in visitor', () => {
     test('downloads album', async ({ page }) => {
         await page.goto(ARMENIA)
         await expect(thumbnails(page)).toHaveCount(2)
+        const requests: string[] = []
+        page.on('request', request => {
+            if (new URL(request.url()).pathname === '/download')
+                requests.push(`${request.method()}${request.headers()['rsc'] ? ' (router)' : ''}`)
+        })
         const download = page.waitForEvent('download')
         await page.getByRole('button', { name: 'Скачать все фотографии' }).click()
         expect((await download).suggestedFilename()).toBe('images.zip')
+        // A single browser request: no extra router fetch (which builds the archive twice) and no server actions
+        // misdirected to the download route
+        expect(requests).toEqual(['GET'])
     })
 
     test('is not allowed to see history', async ({ page }) => {
