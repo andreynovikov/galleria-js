@@ -44,7 +44,7 @@ CREATE TABLE visitor (
     censorship integer DEFAULT 0 NOT NULL
 );
 
-CREATE INDEX image_bundle ON image USING btree (bundle);
+CREATE UNIQUE INDEX image_bundle_name ON image USING btree (bundle, name);
 
 CREATE UNIQUE INDEX label_name ON label USING btree (name);
 

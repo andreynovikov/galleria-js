@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 
 import { fixturesFolder, photosFolder } from './env'
-import { ARMENIA, GEORGIA, asAdmin, description, imageId, thumbnail, thumbnails } from './helpers'
+import { ARMENIA, GEORGIA, asAdmin, db, description, imageId, thumbnail, thumbnails } from './helpers'
 
 test.describe('album sync', () => {
     test('picks up added, changed and removed files', async ({ page, browser }, testInfo) => {
@@ -54,6 +54,34 @@ test.describe('album sync', () => {
 
         const response = await page.goto(bundle)
         expect(response?.status()).toBe(404)
+    })
+
+    test('imports each file once when an album is viewed concurrently', async ({ request }, testInfo) => {
+        const bundle = `/concurrent-${testInfo.project.name}-${testInfo.repeatEachIndex}`
+        const folder = join(photosFolder, bundle)
+        const source = join(fixturesFolder, 'photos', ARMENIA, 'IMG_0102.jpg')
+        const names = ['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg', 'e.jpg']
+
+        await rm(folder, { recursive: true, force: true })
+        await mkdir(folder)
+        try {
+            for (const name of names)
+                await copyFile(source, join(folder, name))
+            const responses = await Promise.all(Array.from({ length: 4 }, () => request.get(bundle)))
+            for (const response of responses)
+                expect(response.status()).toBe(200)
+            const rows = await db()<{ name: string, width: number }[]>`SELECT name, width FROM image WHERE bundle = ${bundle} ORDER BY name`
+            expect(rows.map(row => row.name)).toEqual(names)
+            // Rows are inserted with their metadata
+            for (const row of rows)
+                expect(row.width).toBe(1600)
+        } finally {
+            // Sync removes the rows of deleted files, a missing folder is just reported as not found
+            for (const name of names)
+                await rm(join(folder, name), { force: true })
+            await request.get(bundle)
+            await rm(folder, { recursive: true, force: true })
+        }
     })
 
     test('restricts photos with a restricted label which sync creates', async ({ page, request }, testInfo) => {

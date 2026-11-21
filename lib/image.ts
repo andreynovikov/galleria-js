@@ -45,6 +45,41 @@ function decodeString(value: unknown) {
 /** Thrown when an image has no database record */
 export class ImageNotFoundError extends Error {}
 
+/** Dimensions, caption, shooting time and keywords of a photo file */
+async function readMetadata(path: string): Promise<{ data: ImageUpdate, labels?: string[] }> {
+    const exr = new Exifr({
+        tiff: true,
+        xmp: true,
+        iptc: true,
+        exif: true,
+        gps: true,
+        translateValues: false
+    })
+    const { width, height, orientation } = await sharp(path).metadata()
+    const data: ImageUpdate = { width, height, orientation: orientation ?? 0 }
+    await exr.read(path)
+    const info = await exr.parse()
+    await closeExifr(exr)
+
+    const description = info['Caption'] || info['Headline'] || info['ObjectName']
+    if (description !== undefined)
+        data.description = decodeString(description)
+
+    // Labels are left as they are when the file has no keywords at all
+    const labels = 'Keywords' in info ? ([] as unknown[]).concat(info['Keywords']).map(decodeString) : undefined
+
+    if (data.orientation !== undefined && data.orientation >= 5) {
+        data.width = height
+        data.height = width
+    }
+
+    const stime = info['CreateDate'] || info['DateTimeDigitized'] || info['DateTimeOriginal'] || info['ModifyDate']
+    if (stime !== undefined)
+        data.stime = stime
+
+    return { data, labels }
+}
+
 export default class Image implements Partial<ImageRecord> {
     id?: number
     name?: string
@@ -71,13 +106,13 @@ export default class Image implements Partial<ImageRecord> {
         return image
     }
 
+    /**
+     * Adds a photo to the database. The row is inserted complete, with metadata and labels, in one transaction, so an
+     * interrupted sync leaves no half-imported photos behind: the next sync sees the file as new again.
+     */
     static async create(bundle: string, name: string) {
-        const { id, ctime } = await addImage(bundle, name)
-        const object = Image.fromId(id)
-        object.name = name
-        object.bundle = bundle
-        object.ctime = ctime
-        await object.updateMetadata()
+        const { data, labels } = await readMetadata(join(photosFolder, bundle, name))
+        await addImage(bundle, name, data, labels === undefined ? [] : await getLabelIds(labels))
     }
 
     async delete() {
@@ -154,39 +189,9 @@ export default class Image implements Partial<ImageRecord> {
     }
 
     async updateMetadata() {
-        const path = await this.ensurePath()
-        const exr = new Exifr({
-            tiff: true,
-            xmp: true,
-            iptc: true,
-            exif: true,
-            gps: true,
-            translateValues: false
-        })
-        const { width, height, orientation } = await sharp(path).metadata()
-        const data: ImageUpdate = { width, height, orientation: orientation ?? 0 }
-        await exr.read(path)
-        const info = await exr.parse()
-        await closeExifr(exr)
-
-        const description = info['Caption'] || info['Headline'] || info['ObjectName']
-        if (description !== undefined)
-            data.description = decodeString(description)
-
-        if ('Keywords' in info) {
-            const labels = ([] as unknown[]).concat(info['Keywords']).map(decodeString)
+        const { data, labels } = await readMetadata(await this.ensurePath())
+        if (labels !== undefined)
             await this.setLabels(labels)
-        }
-
-        if (data.orientation !== undefined && data.orientation >= 5) {
-            data.width = height
-            data.height = width
-        }
-
-        const stime = info['CreateDate'] || info['DateTimeDigitized'] || info['DateTimeOriginal'] || info['ModifyDate']
-        if (stime !== undefined)
-            data.stime = stime
-
         await updateImage(await this.getId(), data)
     }
 

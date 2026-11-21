@@ -367,14 +367,24 @@ export async function getImageByName(bundle: string, name: string) {
     return result.at(0)
 }
 
-export async function addImage(bundle: string, name: string) {
-    const ctime = new Date()
-    const image = { bundle, name, ctime: ctime.toISOString() }
-    const result = await sql<{ id: number }[]>`
-      INSERT INTO image ${sql(image)}
-      RETURNING id
-    `
-    return { id: result[0].id, ctime }
+/**
+ * Inserts a photo with its labels in one transaction. Returns its id, or `undefined` if the photo is already there
+ * (another sync of the same album added it meanwhile).
+ */
+export async function addImage(bundle: string, name: string, data: ImageUpdate, labels: number[]) {
+    return sql.begin(async sql => {
+        const image = { bundle, name, ctime: new Date().toISOString(), ...data }
+        const [row] = await sql<{ id: number }[]>`
+          INSERT INTO image ${sql(image)}
+          ON CONFLICT (bundle, name) DO NOTHING
+          RETURNING id
+        `
+        if (row !== undefined && labels.length > 0)
+            await sql`
+              INSERT INTO label_image ${sql(labels.map(label => ({ image: row.id, label })))}
+            `
+        return row?.id
+    })
 }
 
 export async function updateImage(id: number, data: ImageUpdate) {
@@ -443,27 +453,21 @@ export async function setImageLabels(id: number, labels: number[]) {
     })
 }
 
+/** Ids of labels by name, creating the missing ones: two queries for any number of labels */
 export async function getLabelIds(labels: string[]) {
-    const ids: number[] = []
-    for (const label of labels) {
-        const find = () => sql<{ id: number }[]>`
-          SELECT id FROM label
-          WHERE name = ${label}
-        `
-        let result = await find()
-        if (result.length === 0)
-            result = await sql<{ id: number }[]>`
-              INSERT INTO label (name)
-              VALUES (${label})
-              ON CONFLICT (name) DO NOTHING
-              RETURNING id
-            `
-        // Albums can be synced concurrently, the label may have been created after the lookup
-        if (result.length === 0)
-            result = await find()
-        ids.push(result[0].id)
-    }
-    return ids
+    const names = [...new Set(labels)]
+    if (names.length === 0)
+        return []
+    // Albums can be synced concurrently, so a label may be created by another sync at the same time
+    await sql`
+      INSERT INTO label ${sql(names.map(name => ({ name })))}
+      ON CONFLICT (name) DO NOTHING
+    `
+    const rows = await sql<{ id: number }[]>`
+      SELECT id FROM label
+      WHERE name IN ${sql(names)}
+    `
+    return rows.map(row => row.id)
 }
 
 export async function getUser(id: string, provider: string, userData: object): Promise<Visitor> {

@@ -134,6 +134,8 @@ npm run docker-build
 npm run docker-deploy
 ```
 
+New photos are imported when their album is first viewed. A page waits up to 2 seconds for the import, and a larger import goes on in the background while the page shows what is ready. `docker stop` gives the server 30 seconds to finish. If an import is cut off, the next view of the album continues it.
+
 ## Tests
 
 End-to-end tests use Playwright and run on every push in GitHub Actions. To run them locally you need a PostgreSQL role that can create databases. The tests create and reset a separate database called `galleria_e2e`; set `E2E_PGDATABASE` to use another one.

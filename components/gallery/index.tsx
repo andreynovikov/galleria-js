@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
+import { after } from 'next/server'
 
 import Album, { type AlbumPhoto } from '@/components/album'
 import NothingFound from './nothing-found'
@@ -14,6 +15,19 @@ import GaEvent from './ga-event'
 import styles from './gallery.module.css'
 
 const basePath = process.env.BASE_PATH ?? ''
+/** How long a page waits for album sync, in milliseconds. A longer sync goes on after the page is sent. */
+const syncWait = 2000
+
+/** Resolves to `true` if the promise settles within `ms`, rejects if it rejects within `ms` */
+async function settlesWithin(promise: Promise<unknown>, ms: number) {
+    let timer: NodeJS.Timeout | undefined
+    const timeout = new Promise<false>(resolve => { timer = setTimeout(resolve, ms, false) })
+    try {
+        return await Promise.race([promise.then(() => true), timeout])
+    } finally {
+        clearTimeout(timer)
+    }
+}
 
 function parseDate(value?: string) {
     if (value === undefined)
@@ -52,24 +66,32 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
     const requested = Number(censoredParam)
     const censored = censoredParam !== undefined && Number.isInteger(requested) ? Math.max(0, Math.min(requested, level)) : level
 
+    let syncing = false
     if (bundle && labels === undefined && notlabels === undefined && censoredParam === undefined) {
+        // Re-reading metadata of the whole album is expensive, so only admins may ask for it
+        const shouldUpdateMetadata = isAdmin(session) && bool(param(searchParams, 'updatemetadata'))
+        const sync = syncBundle(bundle, shouldUpdateMetadata)
         try {
-            // Re-reading metadata of the whole album is expensive, so only admins may ask for it
-            const shouldUpdateMetadata = isAdmin(session) && bool(param(searchParams, 'updatemetadata'))
-            await syncBundle(bundle, shouldUpdateMetadata)
+            syncing = !await settlesWithin(sync, syncWait)
         } catch (e) {
-            if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') {
+            if ((e as NodeJS.ErrnoException)?.code === 'ENOENT')
                 notFound()
-            }
+            console.error(`Can not sync ${bundle}:`, e)
         }
+        // A large import goes on in the background, the page shows what is imported so far. On graceful shutdown
+        // the server waits for it; if it is killed, the next view of the album continues the import.
+        if (syncing)
+            after(() => sync.catch(e => console.error(`Can not sync ${bundle}:`, e)))
     }
 
     const order = param(searchParams, '-nav.order') || 'stime'
 
     const images = await listImages({ bundle, labels, notlabels, from, till, censored }, order)
 
+    const syncNotice = syncing && <p className={styles.syncing}>Альбом обновляется, остальные фотографии появятся позже.</p>
+
     if (images.length === 0)
-        return <NothingFound />
+        return syncNotice || <NothingFound />
 
     const photos: AlbumPhoto[] = images.map((image) => (
         {
@@ -104,6 +126,7 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
             <div className={styles.topMenu}>
                 <Link href="/">Все альбомы</Link>
             </div>
+            {syncNotice}
             <Album photos={photos} signedIn={!!session} downloadable={!!session && photos.length <= downloadMaxImages} basePath={basePath} />
             {gaEvent}
         </>

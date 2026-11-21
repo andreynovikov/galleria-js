@@ -22,6 +22,8 @@ services:
     env_file: .env.local
     environment:
       NODE_ENV: production
+    # Time for graceful shutdown: in-flight requests and background album sync
+    stop_grace_period: 30s
     restart: unless-stopped
     logging:
       driver: syslog
