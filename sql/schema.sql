@@ -50,6 +50,14 @@ CREATE UNIQUE INDEX label_name ON label USING btree (name);
 
 CREATE UNIQUE INDEX label_image_label_image ON label_image USING btree (label, image);
 
+CREATE INDEX label_image_image ON label_image USING btree (image);
+
+CREATE INDEX log_image ON log USING btree (image);
+
+CREATE INDEX log_ctime ON log USING btree (ctime);
+
+CREATE INDEX log_ip_ctime ON log USING btree (ip, ctime);
+
 CREATE UNIQUE INDEX visitor_id ON visitor USING btree (id, provider);
 
 ALTER TABLE ONLY label_image

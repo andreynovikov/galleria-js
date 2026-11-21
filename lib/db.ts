@@ -548,7 +548,8 @@ export async function getUserLog(filters: UserLogFilters) {
     let day = sql``
 
     if (filters.day) {
-        where.push(sql`date(log.ctime) = ${filters.day}`)
+        // A range rather than date(ctime), so that the (ip, ctime) index is used
+        where.push(sql`log.ctime >= ${filters.day}::date AND log.ctime < ${filters.day}::date + 1`)
     } else {
         day = sql`, log.ctime::date AS day`
         group.push('day')
