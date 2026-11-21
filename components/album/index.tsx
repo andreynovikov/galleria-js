@@ -11,8 +11,6 @@ import Download from 'yet-another-react-lightbox/plugins/download'
 import Fullscreen from 'yet-another-react-lightbox/plugins/fullscreen'
 import Zoom from 'yet-another-react-lightbox/plugins/zoom'
 
-import { LazyLoadImage, trackWindowScroll, type LazyComponentProps } from 'react-lazy-load-image-component'
-
 import GridLoader from 'react-spinners/GridLoader'
 
 import ImageDescription from '@/components/image/description'
@@ -47,12 +45,18 @@ export interface AlbumPhoto {
 
 type Thumbnail = Photo & AlbumPhoto
 
-interface AlbumProps extends LazyComponentProps {
+interface AlbumProps {
     photos: AlbumPhoto[]
     signedIn: boolean
     /** Whether to show the button which downloads all photos */
     downloadable: boolean
     basePath: string
+}
+
+// Thumbnails fade in once loaded. They are loaded lazily by the browser (react-photo-album renders them with
+// loading="lazy"). Thumbnail views are logged by the image route.
+function handleImageLoad(event: SyntheticEvent<HTMLImageElement>) {
+    event.currentTarget.classList.add('lazyloaded')
 }
 
 function scrollTo(id: string | null) {
@@ -63,8 +67,8 @@ function scrollTo(id: string | null) {
     }, 100)
 }
 
-function Album(props: AlbumProps) {
-    const { photos, signedIn, downloadable, basePath, scrollPosition } = props
+export default function Album(props: AlbumProps) {
+    const { photos, signedIn, downloadable, basePath } = props
 
     const [index, setIndex] = useState(-1)
 
@@ -103,17 +107,14 @@ function Album(props: AlbumProps) {
         }
     }, [pathname, searchParams])
 
-    const signIn = () => {
-        const callbackUrl = window.location.href.substring(window.location.origin.length)
-        router.push(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`)
-    }
-
-    const handleThumbnailClick = ({ index }: { index: number }) => {
-        if (photos[index].restricted && !signedIn)
-            signIn()
-        else
+    const handleThumbnailClick = useCallback(({ index }: { index: number }) => {
+        if (photos[index].restricted && !signedIn) {
+            const callbackUrl = window.location.href.substring(window.location.origin.length)
+            router.push(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`)
+        } else {
             setIndex(index)
-    }
+        }
+    }, [photos, signedIn, router])
 
     const handleZoom = (zoom: number) => {
         logZoom(photos[index].id, zoom)
@@ -127,11 +128,6 @@ function Album(props: AlbumProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleDebouncedZoom = useMemo(() => debounce(handleZoom, 1000), [photos, index])
 
-    // Thumbnail views are logged by the image route
-    const handleImageLoad = (event: SyntheticEvent<HTMLImageElement>) => {
-        event.currentTarget.classList.add('lazyloaded')
-    }
-
     const handleDownload = () => {
         const ids = photos.map(image => image.id)
         sendGAEvent('event', 'download_photos', {
@@ -144,17 +140,19 @@ function Album(props: AlbumProps) {
         window.location.assign(`${basePath}/download?images=${ids.join()}`)
     }
 
-    const thumbnails: Thumbnail[] = photos.map(image => (
+    const thumbnails: Thumbnail[] = useMemo(() => photos.map(image => (
         {
             ...image,
             src: image.srcSet.at(-2)?.src ?? image.src,
             srcSet: image.srcSet.slice(0, -1)
         }
-    ))
+    )), [photos])
 
     const slides: Slide[] = photos
 
-    return <>
+    // The grid is laid out for all photos (hundreds in large albums), so it is kept as the same element while only
+    // the lightbox changes (opening it and moving between slides update `index`)
+    const grid = useMemo(() => (
         <MasonryPhotoAlbum
             photos={thumbnails}
             breakpoints={[451, 801, 1201, 1801]}
@@ -171,21 +169,20 @@ function Album(props: AlbumProps) {
                 return 15
             }}
             onClick={handleThumbnailClick}
+            componentsProps={{
+                image: { onLoad: handleImageLoad }
+            }}
             render={{
                 button: (props, { photo }) => (
                     <button
                         {...props}
                         id={`thumbnail-${photo.id}`} />
-                ),
-                image: (props) => (
-                    <LazyLoadImage
-                        {...props}
-                        className={props.className}
-                        scrollPosition={scrollPosition}
-                        threshold={0}
-                        onLoad={handleImageLoad} />
                 )
             }} />
+    ), [thumbnails, handleThumbnailClick])
+
+    return <>
+        {grid}
         <Lightbox
             slides={slides}
             open={index >= 0}
@@ -246,4 +243,3 @@ function Album(props: AlbumProps) {
     </>
 }
 
-export default trackWindowScroll(Album)

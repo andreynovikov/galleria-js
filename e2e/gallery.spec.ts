@@ -15,6 +15,16 @@ test.describe('gallery', () => {
         await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete ? img.naturalWidth : 0)).toBeGreaterThan(0)
     })
 
+    test('loads thumbnails lazily and fades them in', async ({ page }) => {
+        await page.goto(GEORGIA)
+        const images = thumbnails(page).locator('img')
+        await expect(images).toHaveCount(3)
+        for (const image of await images.all()) {
+            await expect(image).toHaveAttribute('loading', 'lazy')
+            await expect(image).toHaveClass(/\blazyloaded\b/)
+        }
+    })
+
     test('lays out photos by their orientation', async ({ page }) => {
         await page.goto(FAMILY)
         // The file is stored as landscape with EXIF orientation 6
