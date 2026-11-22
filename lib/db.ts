@@ -119,14 +119,14 @@ export type LogMeta = { [key: string]: JSONValue | undefined }
 
 export interface LogFilters {
     from?: Date
-    label?: string
-    status?: string
+    label?: number
+    status?: number
 }
 
 export interface LogUser {
     ip: string
     day: Date
-    count: string // bigint is returned as string
+    count: number
     visitors: { name?: string | null, email?: string | null }[]
     meta: { browser?: { name?: string, major?: string, type?: string }, device?: { vendor?: string, model?: string, type?: string }, ua?: string }[]
 }
@@ -585,8 +585,16 @@ export async function writeLog(image: number, status: number, ip: string, visito
     }
 }
 
-export async function getLogUsers(filters: LogFilters) {
-    const where: Fragment[] = []
+/** Days of `/history` per page */
+const historyPageDays = 7
+
+/**
+ * Visitors (by IP and day) of one page of `/history`: the week ending with the latest log entry before `before`
+ * (a `YYYY-MM-DD` date, or now). Pages hold whole days, and empty stretches are skipped. `next` is the `before` of
+ * the following page, `null` after the last one.
+ */
+export async function getLogUsers(filters: LogFilters, before?: string): Promise<{ users: LogUser[], next: string | null }> {
+    const where: Fragment[] = [sql`TRUE`]
 
     if (filters.from)
         where.push(sql`ctime >= ${filters.from}`)
@@ -594,15 +602,29 @@ export async function getLogUsers(filters: LogFilters) {
     if (filters.label)
         where.push(sql`label = ${filters.label}`)
 
-    if (filters.status)
+    if (filters.status !== undefined)
         where.push(sql`status <= ${filters.status}`)
+
+    const join = filters.label ? sql`INNER JOIN label_image ON (log.image = label_image.image)` : sql``
+
+    // The latest entry is an index lookup on log (ctime)
+    const [{ last, start }] = await sql<{ last: string | null, start: string | null }[]>`
+      SELECT
+        to_char(max(ctime), 'YYYY-MM-DD') AS last,
+        to_char(max(ctime)::date - ${historyPageDays - 1}::int, 'YYYY-MM-DD') AS start
+      FROM log
+      ${join}
+      WHERE ${and(where)} ${before ? sql`AND ctime < ${before}::date` : sql``}
+    `
+    if (last === null || start === null)
+        return { users: [], next: null }
 
     // Switch to json_object('browser': meta->'browser', 'device': meta->'device') in PostgreSQL 16
     const users = await sql<LogUser[]>`
       SELECT
         ip,
         ctime::date AS day,
-        COUNT(DISTINCT log.image) AS count,
+        COUNT(DISTINCT log.image)::int AS count,
         COALESCE(
           jsonb_agg(
             DISTINCT jsonb_build_object('name', visitor.data->'name', 'email', visitor.data->'email')
@@ -613,15 +635,13 @@ export async function getLogUsers(filters: LogFilters) {
           DISTINCT jsonb_build_object('browser', meta->'browser', 'device', meta->'device', 'ua', meta->'ua')
         ) AS meta
       FROM log
-      ${filters.label ? sql`
-      INNER JOIN label_image ON (log.image = label_image.image)
-      ` : sql``}
+      ${join}
       LEFT JOIN visitor ON (log.visitor_id = visitor.id AND log.visitor_provider = visitor.provider)
-      ${where.length > 0 ? sql`WHERE ${and(where)}` : sql``}
+      WHERE ${and(where)} AND ctime >= ${start}::date AND ctime < ${last}::date + 1
       GROUP BY ip, day
-      ORDER BY day DESC
+      ORDER BY day DESC, ip
     `
-    return users
+    return { users, next: start }
 }
 
 export async function getUserLog(filters: UserLogFilters) {

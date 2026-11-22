@@ -1,91 +1,29 @@
-import { Fragment } from 'react'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 
-import moment, { type Moment } from 'moment'
+import HistoryDays, { historyFilters, historyQuery } from '@/components/history/days'
+import MoreHistory from '@/components/history/more'
 
-import { getLogUsers, type LogUser } from '@/lib/db'
-import { param } from '@/lib/utils'
+import { getLogUsers } from '@/lib/db'
 import { getSession, isAdmin } from '@/auth'
 
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-interface Day {
-    day: Moment
-    users: LogUser[]
-}
-
+/** Visitors by day, newest first. Shows the latest week of the log, older weeks are loaded on scrolling. */
 export default async function History(props: PageProps<'/history'>) {
     const searchParams = await props.searchParams
     const session = await getSession()
     if (!isAdmin(session))
         redirect('/signin')
 
-    const filters = {
-        from: moment(param(searchParams, '-filt.from') ?? moment().subtract(3, 'months')).toDate(),
-        label: param(searchParams, '-filt.label'),
-        status: param(searchParams, '-filt.status')
-    }
-    const users = await getLogUsers(filters)
+    const query = historyQuery(searchParams)
+    const { users, next } = await getLogUsers(historyFilters(query))
 
-    const days = users.reduce<Day[]>((days, user) => {
-        const last = days.at(-1)
-        const day = moment(user.day)
-        user.meta = user.meta.filter(meta => meta.browser || meta.ua || meta.device)
-        if (!last?.day.isSame(day, 'day')) {
-            days.push({
-                day,
-                users: [user]
-            })
-        } else {
-            last.users.push(user)
-        }
-        return days
-    }, [])
-
-    return days.map(day => (
-        <div className="users" key={day.day.toISOString()}>
-            <div className="date">
-                {day.day.format('LL')}
-            </div>
-            <div>
-                {day.users.map(user => (
-                    <div key={user.ip}>
-                        <Link href={{
-                            pathname: `/history/${user.ip}/${day.day.format('YYYY-MM-DD')}`,
-                            query: searchParams
-                        }}>
-                            {user.ip}
-                            {user.visitors.map((visitor, index) => (
-                                <Fragment key={index}>
-                                    {index == 0 ? ' - ' : ', '}
-                                    {visitor.name || visitor.email}
-                                </Fragment>
-                            ))}
-                        </Link>
-                        &nbsp;
-                        ({user.count})
-                        &nbsp;
-                        <span className="meta">
-                            {user.meta.map((meta, index) => (
-                                <Fragment key={index}>
-                                    {index > 0 && ', '}
-                                    {meta.browser?.name ? <>
-                                        {`${meta.browser.name}`}
-                                        {meta.browser.major && meta.browser.type !== 'crawler' && `/${meta.browser.major}`}
-                                    </> : meta.ua}
-                                    {meta.browser?.type && ` (${meta.browser.type})`}
-                                    {(meta.device?.vendor || meta.device?.type) && ' on '}
-                                    {meta.device?.vendor && `${meta.device.vendor} ${meta.device.model}`}
-                                    {meta.device?.type && ` (${meta.device.type})`}
-                                </Fragment>
-                            ))}
-                        </span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    ))
+    return (
+        <>
+            <HistoryDays users={users} query={query} />
+            <MoreHistory next={next} query={query} />
+        </>
+    )
 }

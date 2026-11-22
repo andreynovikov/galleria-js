@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { GEORGIA, asAdmin, asImpostor, asUser, db } from './helpers'
+import { GEORGIA, asAdmin, asImpostor, asUser, db, imageId } from './helpers'
 
 test.describe('history', () => {
     test.use({ storageState: asAdmin })
@@ -33,6 +33,42 @@ test.describe('history', () => {
         await expect(page.locator('h2')).toContainText('E2E User')
         await expect(page.locator(`a[href="${GEORGIA}/IMG_0002.jpg"]`)).toBeVisible()
         await expect(page.locator(`a[href="${GEORGIA}/IMG_0001.jpg"]`)).toHaveCount(0)
+    })
+})
+
+test.describe('history pages', () => {
+    test.use({ storageState: asAdmin })
+
+    test('load older weeks while scrolling, beyond the last three months', async ({ page }, testInfo) => {
+        // Unique address; entries older than other tests write, so they land on later pages
+        const ip = `10.5.${Math.floor(testInfo.workerIndex / 250)}.${testInfo.workerIndex % 250 + 1}`
+        const image = await imageId(GEORGIA, 'IMG_0001.jpg')
+        const days = [1, 10, 40, 100].map(ago => new Date(Date.now() - ago * 24 * 60 * 60 * 1000))
+        await db()`DELETE FROM log WHERE ip = ${ip}`
+        for (const ctime of days)
+            await db()`INSERT INTO log (image, ip, status, ctime) VALUES (${image}, ${ip}, 3, ${ctime})`
+        try {
+            const actions: string[] = []
+            page.on('request', request => {
+                if (request.headers()['next-action'])
+                    actions.push(request.url())
+            })
+            await page.goto('/history')
+            for (const day of days) {
+                const link = page.locator(`a[href^="/history/${ip}/${day.toISOString().slice(0, 10)}"]`)
+                await expect(async () => {
+                    await page.mouse.wheel(0, 10000)
+                    await expect(link).toHaveCount(1, { timeout: 500 })
+                }).toPass()
+            }
+            // The first page holds the latest week, each older week came with its own request
+            expect(actions.length).toBeGreaterThanOrEqual(3)
+            // Malformed filters are ignored instead of failing in SQL
+            const response = await page.goto('/history?-filt.status=abc&-filt.label=x&-filt.from=yesterday')
+            expect(response?.status()).toBe(200)
+        } finally {
+            await db()`DELETE FROM log WHERE ip = ${ip}`
+        }
     })
 })
 
