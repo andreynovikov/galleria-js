@@ -8,15 +8,27 @@ declare global {
     function gtag(command: 'get', targetId: string, fieldName: string, callback: (value: string) => void): void
 }
 
-export default function GaInit({ gaId }: { gaId: string }) {
+interface GaInitProps {
+    gaId: string
+    /** `BASE_PATH`, which client code can't read */
+    basePath: string
+}
+
+export default function GaInit({ gaId, basePath }: GaInitProps) {
     useEffect(() => {
         if (typeof gtag !== 'function')
             return
 
+        // The server reads it when sign-in completes, to send the login event (lib/ga.ts). Lax lets the redirect
+        // back from the sign-in provider carry it.
         gtag('get', gaId, 'client_id', (client_id) => {
-            setCookie('ga_client_id', client_id, { sameSite: 'lax' })
+            setCookie('ga_client_id', client_id, {
+                sameSite: 'lax',
+                secure: window.location.protocol === 'https:',
+                path: basePath || '/'
+            })
         })
-    }, [gaId])
+    }, [gaId, basePath])
 
     return <GoogleAnalytics gaId={gaId} />
 }

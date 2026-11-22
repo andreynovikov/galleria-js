@@ -20,7 +20,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                     Powered by <a href="https://github.com/andreynovikov/galleria-js" target="_blank">galleria-js</a>
                 </footer>
             </body>
-            {process.env.GOOGLE_ANALYTICS_ID && <GaInit gaId={process.env.GOOGLE_ANALYTICS_ID} />}
+            {process.env.GOOGLE_ANALYTICS_ID && <GaInit gaId={process.env.GOOGLE_ANALYTICS_ID} basePath={process.env.BASE_PATH ?? ''} />}
         </html>
     )
 }

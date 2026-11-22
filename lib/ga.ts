@@ -16,5 +16,5 @@ export async function sendEvent(name: string, params: Record<string, unknown>) {
                 'client_id': gaClientId.value,
                 'events': [event]
             })
-        })
+        }).catch(e => console.error(`Can not send ${name} event to Google Analytics:`, e))
 }
