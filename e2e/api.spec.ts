@@ -175,11 +175,15 @@ test.describe('image URLs', () => {
     test('answer conditional requests', async ({ request }) => {
         const url = `${GEORGIA}/IMG_0001.jpg`
         const etags = new Set<string>()
+        // Files sent as they are have strong validators, which If-Range needs; resized versions have weak ones
+        const files = ['?format=original', '?format=thumbnail&size=s', '?format=thumbnail&size=m']
         for (const query of ['', '?format=original', '?format=export', '?ratio=0.25', '?format=thumbnail&size=s', '?format=thumbnail&size=m']) {
             const response = await request.get(`${url}${query}`)
             expect(response.status(), query).toBe(200)
             const etag = response.headers()['etag']
-            expect(etag, query).toMatch(/^W\/".+"$/)
+            expect(etag, query).toMatch(files.includes(query) ? /^".+"$/ : /^W\/".+"$/)
+            expect(response.headers()['accept-ranges'], query).toBe(files.includes(query) ? 'bytes' : undefined)
+            expect(response.headers()['last-modified'] !== undefined, query).toBe(files.includes(query))
             etags.add(etag)
 
             const cached = await request.get(`${url}${query}`, { headers: { 'if-none-match': etag } })
@@ -193,6 +197,70 @@ test.describe('image URLs', () => {
         }
         // Every variant has its own validator
         expect(etags.size).toBe(6)
+    })
+
+    test('resume downloads of originals with ranges', async ({ request }, testInfo) => {
+        const hash = createHash('sha1').update(`${testInfo.testId}-${testInfo.retry}`).digest()
+        const ip = `10.7.${hash[0]}.${hash[1]}`
+        const url = `${GEORGIA}/IMG_0001.jpg?format=original`
+        const file = await readFile(join(fixturesFolder, 'photos', GEORGIA, 'IMG_0001.jpg'))
+        const size = file.length
+        const full = await request.get(url)
+        const { etag, 'last-modified': modified } = full.headers()
+        const get = (headers: Record<string, string>) => request.get(url, { headers: { 'x-real-ip': ip, ...headers } })
+
+        const first = await get({ range: 'bytes=0-99' })
+        expect(first.status()).toBe(206)
+        expect(first.headers()['content-range']).toBe(`bytes 0-99/${size}`)
+        expect((await first.body()).equals(file.subarray(0, 100))).toBe(true)
+
+        const rest = await get({ range: 'bytes=100-', 'if-range': etag })
+        expect(rest.status()).toBe(206)
+        expect(rest.headers()['content-range']).toBe(`bytes 100-${size - 1}/${size}`)
+        expect(Buffer.concat([await first.body(), await rest.body()]).equals(file)).toBe(true)
+
+        const last = await get({ range: 'bytes=-50', 'if-range': modified })
+        expect(last.status()).toBe(206)
+        expect((await last.body()).equals(file.subarray(size - 50))).toBe(true)
+
+        // A file changed since (another validator) and several ranges get the whole file
+        const wholeFile: Record<string, string>[] = [
+            { range: 'bytes=100-', 'if-range': '"other"' },
+            { range: 'bytes=100-', 'if-range': `W/${etag}` },
+            { range: 'bytes=0-1,5-6' },
+            { range: 'pages=1' }
+        ]
+        for (const headers of wholeFile) {
+            const response = await get(headers)
+            expect(response.status(), JSON.stringify(headers)).toBe(200)
+            expect((await response.body()).length, JSON.stringify(headers)).toBe(size)
+        }
+
+        const beyond = await get({ range: `bytes=${size}-` })
+        expect(beyond.status()).toBe(416)
+        expect(beyond.headers()['content-range']).toBe(`bytes */${size}`)
+
+        // Revalidation by date, when there is no ETag to compare
+        expect((await get({ 'if-modified-since': modified })).status()).toBe(304)
+        expect((await get({ 'if-modified-since': new Date(Date.parse(modified) - 1000).toUTCString() })).status()).toBe(200)
+
+        // One download in parts is logged once, by its first part: here bytes=0-99, but not the parts from byte 100
+        // and the last 50 bytes, or the range beyond the end. The four whole files, the 304 and the 200 are logged.
+        await expect.poll(async () => (await db()<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM log WHERE ip = ${ip}`)[0].n).toBe(7)
+    })
+
+    test('of restricted photo have no modification date to revalidate by', async ({ browser }) => {
+        // Locked and unlocked versions share it, so only the ETag tells them apart
+        const context = await browser.newContext({ storageState: asUser })
+        try {
+            for (const query of ['?format=original', '?format=thumbnail&size=s', '']) {
+                const response = await context.request.get(`${GEORGIA}/IMG_0003.jpg${query}`)
+                expect(response.status(), query).toBe(200)
+                expect(response.headers()['last-modified'], query).toBeUndefined()
+            }
+        } finally {
+            await context.close()
+        }
     })
 
     test('of restricted photo are revalidated after signing in', async ({ request, browser }) => {

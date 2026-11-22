@@ -20,8 +20,9 @@ const maxAge = 60 * 60
  * https://www.ericburel.tech/blog/nextjs-stream-files#moving-to-route-handlers-its-not-that-easy
  */
 
-function streamFile(path: string) {
-    const iterator: AsyncIterator<Buffer> = createReadStream(path)[Symbol.asyncIterator]()
+/** The file, or its bytes from `start` to `end` inclusive */
+function streamFile(path: string, range?: { start: number, end: number }) {
+    const iterator: AsyncIterator<Buffer> = createReadStream(path, range)[Symbol.asyncIterator]()
     return new ReadableStream<Uint8Array>({
         async pull(controller) {
             const { value, done } = await iterator.next()
@@ -37,11 +38,61 @@ function streamFile(path: string) {
 }
 
 /**
- * Weak validator of a file and, for images resized on request, of the variant made from it. It changes when the file
- * is replaced or rewritten (for example, a thumbnail regenerated with `force`).
+ * Validator of a file and, for images resized on request, of the variant made from it. It changes when the file is
+ * replaced or rewritten (for example, a thumbnail regenerated with `force`). A file sent as it is gets a strong one,
+ * which `If-Range` needs to resume downloads; a resized version is only equivalent between sharp versions, so its
+ * validator is weak.
  */
-function entityTag(stats: Stats, variant = '') {
-    return `W/"${stats.size.toString(16)}-${Math.floor(stats.mtimeMs).toString(16)}${variant && '-' + variant}"`
+function entityTag(stats: Stats, variant?: string) {
+    const tag = `"${stats.size.toString(16)}-${Math.floor(stats.mtimeMs).toString(16)}${variant ? '-' + variant : ''}"`
+    return variant === undefined ? tag : `W/${tag}`
+}
+
+/** `Last-Modified` of a file: HTTP dates have whole seconds */
+function lastModified(stats: Stats) {
+    return new Date(Math.floor(stats.mtimeMs / 1000) * 1000)
+}
+
+/** Whether `If-Modified-Since` is at or after the modification time */
+function notModifiedSince(ifModifiedSince: string | null, modified: Date) {
+    const since = ifModifiedSince === null ? NaN : Date.parse(ifModifiedSince)
+    return !Number.isNaN(since) && modified.getTime() <= since
+}
+
+/**
+ * The byte range asked for in `Range`, `undefined` to send the whole file, or `null` when the range is beyond its end.
+ * Only a single range is served; several ranges, a malformed header, or an `If-Range` which doesn't match the current
+ * file (by strong comparison, or the exact date) get the whole file, as RFC 9110 allows.
+ */
+function requestedRange(headers: Headers, size: number, etag: string, modified?: Date) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(headers.get('range')?.trim() ?? '')
+    if (match === null || (match[1] === '' && match[2] === ''))
+        return undefined
+    const ifRange = headers.get('if-range')?.trim()
+    if (ifRange !== undefined) {
+        const current = ifRange.startsWith('"') || ifRange.startsWith('W/')
+            ? !etag.startsWith('W/') && ifRange === etag
+            : modified !== undefined && Date.parse(ifRange) === modified.getTime()
+        if (!current)
+            return undefined
+    }
+    let start: number, end: number
+    if (match[1] === '') {
+        // The last bytes
+        const length = Number(match[2])
+        if (length === 0)
+            return null
+        start = Math.max(size - length, 0)
+        end = size - 1
+    } else {
+        start = Number(match[1])
+        end = match[2] === '' ? size - 1 : Math.min(Number(match[2]), size - 1)
+        if (end < start)
+            return start >= size ? null : undefined
+    }
+    if (start >= size)
+        return null
+    return { start, end }
 }
 
 /** Whether `If-None-Match` matches the validator, by weak comparison */
@@ -122,23 +173,20 @@ export async function GET(request: NextRequest) {
     }
     const sessionDependent = hasRestrictedLabel || (image.censored ?? 0) > 0
 
-    // The response body is made only when the browser's copy is outdated: resizing is the expensive part
-    let etag: string
-    let body: () => Promise<{ type: string, size: number, stream: ReadableStream }>
-    const original = async () => ({ type: 'jpeg', size: stats.size, stream: streamFile(path) })
+    // A file is sent as it is, and can be sent in parts (resumed downloads). A resized version is made only when the
+    // browser's copy is outdated: resizing is the expensive part.
+    let source: { file: string, stats: Stats, type: string } | { etag: string, make: () => Promise<Buffer> }
 
     if (format === 'thumbnail') {
         const thumbnail = await image.makeThumbnail(thumbnailSize, vertical, force, restricted)
-        etag = entityTag(await stat(thumbnail.path))
-        body = async () => ({ type: thumbnail.type, size: thumbnail.size, stream: streamFile(thumbnail.path) })
+        source = { file: thumbnail.path, stats: await stat(thumbnail.path), type: thumbnail.type }
         action = restricted ? ACTION_LOCKED : ACTION_THUMBNAIL
     } else if (format === 'original') {
         if (restricted)
             return new Response('Forbidden', {
                 status: 403
             })
-        etag = entityTag(stats)
-        body = original
+        source = { file: path, stats, type: 'jpeg' }
         action = ACTION_ORIGINAL
     } else {
         let width = screenMaxWidth
@@ -159,21 +207,20 @@ export async function GET(request: NextRequest) {
             width = Math.round(imageWidth / imageHeight * width)
         width = Math.max(width, 1)
         if (imageWidth > width * screenDelta || restricted) {
-            etag = entityTag(stats, `${width}${restricted ? '-locked' : ''}`)
             // Versions kept in memory still go through this route, so access checks and the log stay the same
-            body = async () => {
-                const data = await image.getResizedCached(width, restricted, stats)
-                return { type: 'jpeg', size: data.length, stream: new Blob([new Uint8Array(data)]).stream() }
+            source = {
+                etag: entityTag(stats, `${width}${restricted ? '-locked' : ''}`),
+                make: () => image.getResizedCached(width, restricted, stats)
             }
             if (restricted)
                 action = ACTION_LOCKED
         } else {
-            etag = entityTag(stats)
-            body = original
+            source = { file: path, stats, type: 'jpeg' }
         }
     }
+    const etag = 'file' in source ? entityTag(source.stats) : source.etag
 
-    after(async () => {
+    const log = () => after(async () => {
         const meta = uaMeta(request.headers)
         await writeLog(await image.getId(), action, ip, session?.user, meta)
     })
@@ -187,13 +234,44 @@ export async function GET(request: NextRequest) {
     })
     if (sessionDependent)
         headers.set('vary', 'Cookie')
+    // Not for those: the locked and unlocked screen versions are made from the same file, and a client checking only
+    // `If-Modified-Since` could keep the locked one after signing in
+    const modified = 'file' in source && !sessionDependent ? lastModified(source.stats) : undefined
+    if (modified !== undefined)
+        headers.set('last-modified', modified.toUTCString())
+    if ('file' in source)
+        headers.set('accept-ranges', 'bytes')
 
-    // Views answered from the browser cache are logged too, they are views all the same
-    if (notModified(request.headers.get('if-none-match'), etag))
+    // Views answered from the browser cache are logged too, they are views all the same. `If-Modified-Since` counts
+    // only without `If-None-Match`.
+    const ifNoneMatch = request.headers.get('if-none-match')
+    if (ifNoneMatch !== null ? notModified(ifNoneMatch, etag) : modified !== undefined && notModifiedSince(request.headers.get('if-modified-since'), modified)) {
+        log()
         return new Response(null, { status: 304, headers })
+    }
 
-    const { type, size, stream } = await body()
-    headers.set('content-type', 'image/' + type)
-    headers.set('content-length', size + '')
-    return new Response(stream, { status: 200, headers })
+    if ('file' in source) {
+        headers.set('content-type', 'image/' + source.type)
+        const range = requestedRange(request.headers, source.stats.size, etag, modified)
+        if (range === null) {
+            headers.set('content-range', `bytes */${source.stats.size}`)
+            return new Response(null, { status: 416, headers })
+        }
+        // Download managers fetch a file in many parts: it is logged once, by the part from its start
+        if (range === undefined || range.start === 0)
+            log()
+        if (range !== undefined) {
+            headers.set('content-range', `bytes ${range.start}-${range.end}/${source.stats.size}`)
+            headers.set('content-length', `${range.end - range.start + 1}`)
+            return new Response(streamFile(source.file, range), { status: 206, headers })
+        }
+        headers.set('content-length', `${source.stats.size}`)
+        return new Response(streamFile(source.file), { status: 200, headers })
+    }
+
+    log()
+    const data = await source.make()
+    headers.set('content-type', 'image/jpeg')
+    headers.set('content-length', `${data.length}`)
+    return new Response(new Blob([new Uint8Array(data)]).stream(), { status: 200, headers })
 }
