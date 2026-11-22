@@ -6,6 +6,7 @@ import { expect, test, type APIRequestContext } from '@playwright/test'
 import sharp from 'sharp'
 
 import { fixturesFolder, photosFolder } from './env'
+import { cspHeaders } from '../lib/csp'
 import { ARMENIA, FAMILY, GEORGIA, asAdmin, asUser, asViewer, cookieHeader, db, imageId, logCount, noiseAlbum, settled, wait } from './helpers'
 
 async function image(request: APIRequestContext, url: string, type = 'image/jpeg') {
@@ -313,12 +314,64 @@ test.describe('client hints', () => {
     })
 })
 
+test.describe('content security policy', () => {
+    test('allows only the scripts of the page, by a nonce new for every request', async ({ request }) => {
+        const nonces = new Set<string>()
+        for (const url of [GEORGIA, GEORGIA, '/signin']) {
+            const response = await request.get(url)
+            const policy = response.headers()['content-security-policy']
+            const nonce = /'nonce-([^']+)'/.exec(policy)?.[1]
+            expect(nonce, url).toBeDefined()
+            expect(policy, url).toContain("'strict-dynamic'")
+            expect(policy, url).toContain('report-uri /api/csp-report')
+            nonces.add(nonce as string)
+            // Next adds it to every script of the page, inline or not
+            const scripts = [...(await response.text()).matchAll(/<script\b[^>]*>/g)].map(match => match[0])
+            expect(scripts.length, url).toBeGreaterThan(0)
+            for (const script of scripts)
+                expect(script, url).toContain(`nonce="${nonce}"`)
+        }
+        expect(nonces.size).toBe(3)
+    })
+
+    test('in report mode, enforces the policy without a nonce and reports for the one with it', async () => {
+        // The test server enforces the nonce policy; the rollout default is checked on the headers themselves
+        const headers = cspHeaders('abc', 'report', '/photos')
+        expect(headers['content-security-policy']).toContain("'unsafe-inline'")
+        expect(headers['content-security-policy']).not.toContain('nonce-')
+        expect(headers['content-security-policy-report-only']).toContain("'nonce-abc' 'strict-dynamic'")
+        expect(headers['content-security-policy-report-only']).toContain('report-uri /photos/api/csp-report')
+        expect(Object.keys(cspHeaders('abc', 'enforce', ''))).toEqual(['content-security-policy'])
+    })
+
+    test('reports are accepted in both formats', async ({ request }) => {
+        const legacy = await request.post('/api/csp-report', {
+            headers: { 'content-type': 'application/csp-report' },
+            data: JSON.stringify({ 'csp-report': { 'document-uri': 'http://localhost/', 'violated-directive': 'script-src-elem', 'blocked-uri': 'inline', disposition: 'report' } })
+        })
+        expect(legacy.status()).toBe(204)
+        const modern = await request.post('/api/csp-report', {
+            headers: { 'content-type': 'application/reports+json' },
+            data: JSON.stringify([{ type: 'csp-violation', body: { documentURL: 'http://localhost/', effectiveDirective: 'script-src-attr', blockedURL: 'inline', disposition: 'enforce' } }])
+        })
+        expect(modern.status()).toBe(204)
+
+        expect((await request.post('/api/csp-report', { headers: { 'content-type': 'text/plain' }, data: '{}' })).status()).toBe(415)
+        expect((await request.post('/api/csp-report', { headers: { 'content-type': 'application/csp-report' }, data: 'not json' })).status()).toBe(400)
+        expect((await request.post('/api/csp-report', { headers: { 'content-type': 'application/csp-report' }, data: 'x'.repeat(70 * 1024) })).status()).toBe(413)
+    })
+})
+
 test('security headers are sent', async ({ request }) => {
-    for (const url of ['/', GEORGIA, `${GEORGIA}/IMG_0001.jpg`]) {
+    for (const url of ['/', GEORGIA, '/signin']) {
         const headers = (await request.get(url)).headers()
         expect(headers['content-security-policy'], url).toContain("frame-ancestors 'self'")
         expect(headers['content-security-policy'], url).toContain("object-src 'none'")
         expect(headers['content-security-policy'], url).not.toContain('unsafe-eval')
+    }
+    // Images can't run scripts; nosniff keeps them from being taken for anything else
+    for (const url of ['/', GEORGIA, `${GEORGIA}/IMG_0001.jpg`]) {
+        const headers = (await request.get(url)).headers()
         expect(headers['x-frame-options'], url).toBe('SAMEORIGIN')
         expect(headers['referrer-policy'], url).toBe('strict-origin-when-cross-origin')
         expect(headers['x-content-type-options'], url).toBe('nosniff')

@@ -60,7 +60,7 @@ Galleria runs in Docker on the same host as PostgreSQL and the photo archive, be
 ### 2. Configure
 
 Settings come from two files:
-* `.env`: committed, non-secret defaults (image sizes, the download limit, `SCREEN_CACHE_MB`, the memory kept for resized photos, `LOG_RETENTION_DAYS`, how long the access log is kept, `SYNC_INTERVAL_MINUTES`, how often the photos folder is scanned (0 turns the scan off), and `CLIENT_HINTS`, see below).
+* `.env`: committed, non-secret defaults (image sizes, the download limit, `SCREEN_CACHE_MB`, the memory kept for resized photos, `LOG_RETENTION_DAYS`, how long the access log is kept, `SYNC_INTERVAL_MINUTES`, how often the photos folder is scanned (0 turns the scan off), `CSP_NONCE` and `CLIENT_HINTS`, see below).
 * `.env.local`: your deployment's settings and secrets. Create it next to `docker-compose.yaml`; it is never committed and never copied into the image.
 
 ```sh
@@ -91,6 +91,8 @@ GOOGLE_ANALYTICS_API_SECRET=…
 Register `<BETTER_AUTH_URL><BASE_PATH>/api/auth/callback/<provider>` as the callback URL in each OAuth app (for example `https://example.com/photos/api/auth/callback/github`).
 
 Over HTTPS, the session cookies get the `__Secure-` prefix. If you serve the app over plain HTTP, set `BETTER_AUTH_URL` to its `http://` address, or signing in won't work.
+
+Pages send a Content Security Policy that lets only their own scripts run, by a nonce new for every page, so a script injected into a page through some bug is blocked. `CSP_NONCE` sets how strictly: `report` (the default) still allows inline scripts and only reports what the nonce policy would block, `enforce` blocks it. Browsers send the reports to the app, which writes them to its log (`Content Security Policy would block …`, at most once an hour for each kind). After deploying, browse the gallery for a while, signed in and not, with Google Analytics on if you use it; if the log shows no such lines after some days, set `CSP_NONCE=enforce` in `.env.local` and run `npm run docker-deploy`.
 
 The access log is kept for `LOG_RETENTION_DAYS` (365 by default; 0 keeps it forever). It is stored by month, and the app drops a month once all of it is older than that, checking at start and then once a day.
 

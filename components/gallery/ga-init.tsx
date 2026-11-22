@@ -12,9 +12,11 @@ interface GaInitProps {
     gaId: string
     /** `BASE_PATH`, which client code can't read */
     basePath: string
+    /** Nonce of the page's Content Security Policy, for the Google Analytics scripts */
+    nonce?: string
 }
 
-export default function GaInit({ gaId, basePath }: GaInitProps) {
+export default function GaInit({ gaId, basePath, nonce }: GaInitProps) {
     useEffect(() => {
         if (typeof gtag !== 'function')
             return
@@ -30,5 +32,5 @@ export default function GaInit({ gaId, basePath }: GaInitProps) {
         })
     }, [gaId, basePath])
 
-    return <GoogleAnalytics gaId={gaId} />
+    return <GoogleAnalytics gaId={gaId} nonce={nonce} />
 }

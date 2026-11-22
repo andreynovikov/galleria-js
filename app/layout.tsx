@@ -1,3 +1,5 @@
+import { headers } from 'next/headers'
+
 import GaInit from '@/components/gallery/ga-init'
 
 import { Nunito } from 'next/font/google'
@@ -11,7 +13,11 @@ const nunito = Nunito({
 import 'modern-normalize/modern-normalize.css'
 import './globals.css'
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+export default async function RootLayout({ children }: LayoutProps<'/'>) {
+    // Set by proxy.ts. Reading it renders every page per request, which the nonce needs anyway: a page rendered
+    // ahead would have none, and its scripts would be blocked
+    const nonce = (await headers()).get('x-nonce') ?? undefined
+
     return (
         <html lang="ru" className={nunito.className}>
             <body>
@@ -20,7 +26,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                     Powered by <a href="https://github.com/andreynovikov/galleria-js" target="_blank">galleria-js</a>
                 </footer>
             </body>
-            {process.env.GOOGLE_ANALYTICS_ID && <GaInit gaId={process.env.GOOGLE_ANALYTICS_ID} basePath={process.env.BASE_PATH ?? ''} />}
+            {process.env.GOOGLE_ANALYTICS_ID && <GaInit gaId={process.env.GOOGLE_ANALYTICS_ID} basePath={process.env.BASE_PATH ?? ''} nonce={nonce} />}
         </html>
     )
 }

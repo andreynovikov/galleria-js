@@ -108,6 +108,21 @@ test.describe('gallery', () => {
     })
 })
 
+test('injected scripts are blocked', async ({ page }) => {
+    await page.goto(GEORGIA)
+    // As if a caption carried HTML past React's escaping: inline event handlers have no nonce. The browser also sends
+    // a report, which the server logs (Playwright doesn't see those requests).
+    const result = await page.evaluate(() => new Promise<{ ran: boolean, directive: string }>(resolve => {
+        document.addEventListener('securitypolicyviolation', event => {
+            setTimeout(() => resolve({ ran: (window as { injected?: boolean }).injected === true, directive: event.effectiveDirective }), 200)
+        }, { once: true })
+        const div = document.createElement('div')
+        div.innerHTML = '<img src="/missing.png" onerror="window.injected = true">'
+        document.body.append(div)
+    }))
+    expect(result).toEqual({ ran: false, directive: 'script-src-attr' })
+})
+
 test('pages work under the content security policy', async ({ page }) => {
     const violations: string[] = []
     page.on('console', message => {

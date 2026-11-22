@@ -73,6 +73,8 @@ export const env: Record<string, string> = {
     AUTH_MAILRU_ID: 'e2e', AUTH_MAILRU_SECRET: 'e2e',
     AUTH_VK_ID: 'e2e', AUTH_VK_SECRET: 'e2e',
     AUTH_YANDEX_ID: 'e2e', AUTH_YANDEX_SECRET: 'e2e',
+    // Tests run under the nonce policy, so a script it would block fails them (e2e/gallery.spec.ts)
+    CSP_NONCE: 'enforce',
     // Tests sync albums themselves, a scan of the whole folder would race with the ones adding and removing files
     SYNC_INTERVAL_MINUTES: '0',
     // Do not report test traffic
