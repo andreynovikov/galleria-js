@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { ARMENIA, FAMILY, GEORGIA, db, labelId, thumbnail, thumbnails } from './helpers'
+import { ARMENIA, FAMILY, GEORGIA, HIDDEN, asUser, db, labelId, thumbnail, thumbnails } from './helpers'
 
 function tag(page: Page, name: string) {
     // Related labels are prefixed with "+"
@@ -16,13 +16,29 @@ test.describe('landing page', () => {
         await expect(slide).toBeVisible()
         await expect.poll(() => slide.evaluate((img: HTMLImageElement) => img.complete ? img.naturalWidth : 0)).toBeGreaterThan(0)
 
-        for (const [bundle, count] of [[GEORGIA, 3], [ARMENIA, 2], [FAMILY, 1]] as const) {
+        // Censored photos are neither counted nor revealed by their album or labels
+        for (const [bundle, count] of [[GEORGIA, 3], [ARMENIA, 1], [FAMILY, 1]] as const) {
             const link = page.getByRole('link', { name: bundle, exact: true })
             await expect(page.getByRole('listitem').filter({ has: link })).toContainText(`(${count})`)
         }
+        await expect(page.getByRole('link', { name: HIDDEN, exact: true })).toHaveCount(0)
 
         for (const name of ['Горы', 'Омало', 'Таня', 'Private'])
             await expect(tag(page, name)).toBeVisible()
+        await expect(tag(page, 'Скрытое')).toHaveCount(0)
+    })
+
+    test.describe('of visitor allowed by censorship level', () => {
+        test.use({ storageState: asUser })
+
+        test('counts censored photos', async ({ page }) => {
+            await page.goto('/')
+            for (const [bundle, count] of [[ARMENIA, 2], [HIDDEN, 1]] as const) {
+                const link = page.getByRole('link', { name: bundle, exact: true })
+                await expect(page.getByRole('listitem').filter({ has: link })).toContainText(`(${count})`)
+            }
+            await expect(tag(page, 'Скрытое')).toBeVisible()
+        })
     })
 
     test('album link opens the album', async ({ page }) => {
@@ -70,10 +86,19 @@ test.describe('landing page', () => {
         const tanya = await labelId('Таня')
 
         await page.goto('/')
+        const actions: string[] = []
+        page.on('request', request => {
+            if (request.headers()['next-action'])
+                actions.push(request.url())
+        })
         await tag(page, 'Горы').click()
         await tag(page, 'Таня').click()
         await tag(page, 'Таня').click()
         await expect(tag(page, 'Таня')).toHaveClass(/excluded/)
+        // Photos with Горы and without Таня
+        await expect(tag(page, 'Омало')).toHaveClass(/related/)
+        // Related labels are asked for once clicks pause, not on every click (and not on load)
+        expect(actions.length).toBeLessThanOrEqual(2)
 
         await page.getByRole('button', { name: 'Показать' }).click()
         await expect(page).toHaveURL(`/?-filt.labels=${mountains}&-filt.notlabels=${tanya}`)

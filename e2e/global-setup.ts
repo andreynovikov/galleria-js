@@ -52,6 +52,7 @@ async function syncBundles() {
     const sql = postgres({ onnotice: () => {} })
     try {
         await sql`UPDATE image SET censored = 1 WHERE bundle = '/travel/Armenia/2016' AND name = 'IMG_0102.jpg'`
+        await sql`UPDATE image SET censored = 1 WHERE bundle = '/hidden/2020'`
     } finally {
         await sql.end()
     }

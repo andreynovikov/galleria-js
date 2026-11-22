@@ -60,8 +60,9 @@ export async function getImage(id: number): Promise<ImageInfo> {
     }
 }
 
+/** Labels of the photos which have all `included` labels and none of `excluded`, among those the visitor may see */
 export async function getRelatedLabels(included: number[], excluded: number[]) {
-    return await listRelatedLabels(ids(included), ids(excluded))
+    return await listRelatedLabels(ids(included), ids(excluded), censorshipLevel(await getSession()))
 }
 
 async function log(id: number, action: number, extra: LogMeta = {}) {

@@ -16,13 +16,24 @@ test.describe('album sync', () => {
         await rm(folder, { recursive: true, force: true })
         await mkdir(folder)
         try {
+            // The landing page album list is cached, until a sync changes the album
+            const albumCount = async () => {
+                await page.goto('/')
+                const link = page.getByRole('link', { name: bundle, exact: true })
+                if (await link.count() === 0)
+                    return null
+                return await page.getByRole('listitem').filter({ has: link }).textContent()
+            }
+
             await copyFile(source, join(folder, 'a.jpg'))
             await page.goto(bundle)
             await expect(thumbnails(page)).toHaveCount(1)
+            expect(await albumCount()).toContain('(1)')
 
             await copyFile(source, join(folder, 'b.jpg'))
-            await page.reload()
+            await page.goto(bundle)
             await expect(thumbnails(page)).toHaveCount(2)
+            expect(await albumCount()).toContain('(2)')
 
             // Metadata is re-read only when an admin requests it
             await copyFile(join(fixturesFolder, 'extra', 'updated.jpg'), join(folder, 'a.jpg'))
@@ -46,8 +57,9 @@ test.describe('album sync', () => {
             await expect(thumbnails(page)).toHaveCount(1)
 
             await rm(join(folder, 'a.jpg'))
-            await page.reload()
+            await page.goto(bundle)
             await expect(page.getByRole('img', { name: 'Nothing found' })).toBeVisible()
+            expect(await albumCount()).toBeNull()
         } finally {
             await rm(folder, { recursive: true, force: true })
         }

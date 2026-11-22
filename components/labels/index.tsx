@@ -17,6 +17,9 @@ const options: ColorOptions = {
 
 type LabelTag = Tag & LabelCount
 
+/** How long the selection has to stay unchanged before related labels are asked for, in milliseconds */
+const relatedDelay = 300
+
 interface LabelCloudProps {
     labels: LabelCount[]
 }
@@ -26,8 +29,21 @@ export default function LabelCloud({ labels }: LabelCloudProps) {
     const [excludedLabels, setExcludedLabels] = useState<number[]>([])
     const [relatedLabels, setRelatedLabels] = useState<number[]>([])
 
+    // Asked once clicks pause, and only the answer for the latest selection is used: they can arrive out of order
     useEffect(() => {
-        getRelatedLabels(includedLabels, excludedLabels).then(result => setRelatedLabels(result.map(label => label.id)))
+        if (includedLabels.length === 0)
+            return
+        let current = true
+        const timer = setTimeout(() => {
+            getRelatedLabels(includedLabels, excludedLabels).then(result => {
+                if (current)
+                    setRelatedLabels(result.map(label => label.id))
+            })
+        }, relatedDelay)
+        return () => {
+            current = false
+            clearTimeout(timer)
+        }
     }, [includedLabels, excludedLabels])
 
     const router = useRouter()
@@ -40,7 +56,7 @@ export default function LabelCloud({ labels }: LabelCloudProps) {
 
         const isSelected = includedLabels.includes(tag.id)
         const isExcluded = excludedLabels.includes(tag.id)
-        const isRelated = relatedLabels.includes(tag.id)
+        const isRelated = includedLabels.length > 0 && relatedLabels.includes(tag.id)
 
         const classNames = ['tag-cloud-tag']
         if (isSelected)

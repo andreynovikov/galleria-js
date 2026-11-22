@@ -89,6 +89,16 @@ const fixtures: Fixture[] = [
         exif: { Orientation: '6' }
     },
     {
+        // Censored by e2e/global-setup.ts: anonymous visitors see neither the album nor its label
+        path: 'photos/hidden/2020/IMG_0201.jpg',
+        text: 'Hidden',
+        colors: ['#614385', '#516395'],
+        width: 1600,
+        height: 1067,
+        date: '2020:06:06 06:06:06',
+        keywords: ['Скрытое']
+    },
+    {
         // Not part of the archive: e2e/sync.spec.ts copies it over another file to test metadata updates
         path: 'extra/updated.jpg',
         text: 'Updated',

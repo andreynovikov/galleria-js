@@ -8,8 +8,10 @@ import { authDir } from './env'
 export const GEORGIA = '/travel/Georgia/2015'
 export const ARMENIA = '/travel/Armenia/2016'
 export const FAMILY = '/family/2020'
+/** Its only photo is censored, with a label no other photo has */
+export const HIDDEN = '/hidden/2020'
 
-export const bundles = [GEORGIA, ARMENIA, FAMILY]
+export const bundles = [GEORGIA, ARMENIA, FAMILY, HIDDEN]
 
 /** Playwright storage states created by global setup */
 export const asUser = join(authDir, 'user.json')

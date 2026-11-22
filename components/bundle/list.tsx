@@ -1,7 +1,8 @@
-import { listBundles } from '@/lib/db'
 import Link from 'next/link'
 
+import { listBundles } from '@/lib/db'
 import { urlPath } from '@/lib/utils'
+import { censorshipLevel, getSession } from '@/auth'
 
 import styles from './list.module.css'
 
@@ -11,7 +12,7 @@ https://stackoverflow.com/questions/71436457/
 */
 
 export default async function BundleList() {
-    const bundles = await listBundles()
+    const bundles = await listBundles(censorshipLevel(await getSession()))
 
     return (
         <ul className={styles.bundles}>

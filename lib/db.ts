@@ -4,6 +4,7 @@ type JSONValue = postgres.JSONValue
 
 declare global {
     var __postgresSqlClient: Sql | undefined
+    var __listings: Map<string, { expires: number, value: Promise<unknown> }> | undefined
 }
 
 let sql: Sql
@@ -49,7 +50,7 @@ export interface LabelCount extends Label {
 
 export interface Bundle {
     path: string
-    count: string // bigint is returned as string
+    count: number
 }
 
 export interface ListedImage {
@@ -180,65 +181,97 @@ export async function getLabelNames(ids: number[]) {
 // helpers (https://github.com/porsager/postgres/discussions/529)
 const and = (arr: Fragment[]) => arr.reduce((acc, x) => sql`${acc} AND ${x}`)
 
-export async function listBundles() {
-    const bundles = await sql<Bundle[]>`
+/**
+ * Album and label lists of the landing page, kept in memory by censorship level. Kept on `globalThis`, so every module
+ * instance in the server process shares them. Writes of photos and their labels below clear them; the lifetime covers
+ * changes made outside the app, such as censorship levels set in the database by hand.
+ */
+const listings = global.__listings ??= new Map()
+const listingLifetime = 5 * 60 * 1000
+
+function cachedListing<T>(key: string, load: () => Promise<T>): Promise<T> {
+    const cached = listings.get(key)
+    if (cached !== undefined && cached.expires > Date.now())
+        return cached.value as Promise<T>
+    const entry = { expires: Date.now() + listingLifetime, value: load() }
+    listings.set(key, entry)
+    entry.value.catch(() => {
+        if (listings.get(key) === entry)
+            listings.delete(key)
+    })
+    return entry.value
+}
+
+/** Called after every committed change to photos or their labels */
+function invalidateListings() {
+    listings.clear()
+}
+
+/** Albums with the number of photos the visitor may see; albums of censored photos only are left out */
+export async function listBundles(censored: number) {
+    return await cachedListing(`bundles:${censored}`, () => sql<Bundle[]>`
       SELECT
         bundle AS path,
-        COUNT(id) AS count
+        COUNT(id)::int AS count
       FROM image
+      WHERE censored <= ${censored}
       GROUP BY bundle
       ORDER BY path
-    `
-    return bundles
+    `)
 }
 
-export async function listLabels() {
-    const labels = await sql<LabelCount[]>`
+/** Labels with the number of photos the visitor may see; labels of censored photos only are left out */
+export async function listLabels(censored: number) {
+    return await cachedListing(`labels:${censored}`, () => sql<LabelCount[]>`
       SELECT
-        id,
-        name,
-        COUNT(image)::int AS count
+        label.id,
+        label.name,
+        COUNT(*)::int AS count
       FROM label
-      INNER JOIN label_image
-      ON (label = id)
-      GROUP BY id
-      ORDER BY name ASC
-    `
-    return labels
+      JOIN label_image ON label_image.label = label.id
+      JOIN image ON image.id = label_image.image
+      WHERE image.censored <= ${censored}
+      GROUP BY label.id
+      ORDER BY label.name ASC
+    `)
 }
 
-export async function listRelatedLabels(include: number[], exclude: number[]) {
-    const having: Fragment[] = []
-    if (include.length > 0)
-        having.push(...include.map(label => sql`SUM(CASE WHEN label=${label} THEN 1 ELSE 0 END) > 0`))
-    if (exclude.length > 0)
-        having.push(...exclude.map(label => sql`SUM(CASE WHEN label=${label} THEN 1 ELSE 0 END) = 0`))
-
-    if (having.length === 0)
+/**
+ * Labels of the photos which have all `include` labels and none of `exclude`, with the number of such photos the
+ * visitor may see. The matching photos are found with index lookups per label instead of grouping all of
+ * `label_image`.
+ */
+export async function listRelatedLabels(include: number[], exclude: number[], censored: number) {
+    if (include.length === 0)
         return [] // never output all labels
 
+    const intersection = include
+        .map(label => sql`SELECT image FROM label_image WHERE label = ${label}`)
+        .reduce((acc, x) => sql`${acc} INTERSECT ${x}`)
+    // Faster than EXCEPT, which collects every photo of the excluded labels first
+    const matching = exclude.length === 0 ? intersection : sql`
+      SELECT image FROM (${intersection}) included
+      WHERE NOT EXISTS (
+        SELECT 1 FROM label_image excluded
+        WHERE excluded.image = included.image AND excluded.label = ANY(${exclude}::int[])
+      )
+    `
     const selected = [...include, ...exclude]
 
-    const labels = await sql<LabelCount[]>`
-      WITH label_count AS (
-        SELECT image FROM label_image
-        GROUP BY image
-        HAVING ${and(having)}
-      )
-      SELECT id, name, COUNT(image)::int AS count FROM label
-      JOIN label_image ON id = label
-      WHERE
-        label NOT IN ${sql(selected)}
-        AND
-        EXISTS (
-          SELECT 1 FROM label_count
-          WHERE image = label_image.image
-        )
-      GROUP BY id
-      HAVING COUNT(image) > 0
-      ORDER BY count DESC, name ASC
+    return await sql<LabelCount[]>`
+      WITH matching AS (${matching})
+      SELECT
+        label.id,
+        label.name,
+        COUNT(*)::int AS count
+      FROM matching
+      JOIN image ON image.id = matching.image
+      JOIN label_image ON label_image.image = matching.image
+      JOIN label ON label.id = label_image.label
+      WHERE image.censored <= ${censored} AND label_image.label <> ALL(${selected}::int[])
+      GROUP BY label.id
+      ORDER BY count DESC, label.name ASC
     `
-    return labels
 }
 
 export async function listImages(filters: ImageFilters, order: string) {
@@ -392,7 +425,7 @@ export async function addImage(bundle: string, name: string, data: ImageUpdate, 
               INSERT INTO label_image ${sql(labels.map(label => ({ image: row.id, label })))}
             `
         return row?.id
-    })
+    }).finally(invalidateListings)
 }
 
 export async function updateImage(id: number, data: ImageUpdate) {
@@ -404,10 +437,14 @@ export async function updateImage(id: number, data: ImageUpdate) {
 
 export async function deleteImage(id: number) {
     // Other tables are cascaded via DB constraint
-    await sql`
-      DELETE FROM image
-      WHERE id = ${id}
-    `
+    try {
+        await sql`
+          DELETE FROM image
+          WHERE id = ${id}
+        `
+    } finally {
+        invalidateListings()
+    }
 }
 
 export async function getImageLabels(id: number) {
@@ -458,7 +495,7 @@ export async function setImageLabels(id: number, labels: number[]) {
                   WHERE id IN ${sql(unused.map(row => row.id))}
                 `
         }
-    })
+    }).finally(invalidateListings)
 }
 
 /** Ids of labels by name, creating the missing ones: two queries for any number of labels */
