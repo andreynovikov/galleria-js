@@ -15,7 +15,9 @@ CREATE TABLE image (
     starred integer DEFAULT 0 NOT NULL,
     exportable boolean DEFAULT true NOT NULL,
     censored integer DEFAULT 0 NOT NULL,
-    exif jsonb
+    exif jsonb,
+    -- Size and modification time of the file when its metadata was read: sync re-reads it when they change
+    size integer
 );
 
 CREATE TABLE label (

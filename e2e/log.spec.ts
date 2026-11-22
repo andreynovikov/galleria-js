@@ -15,12 +15,6 @@ function partition(date: Date) {
     return `log_${date.getUTCFullYear()}_${String(date.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
-test.afterAll(async () => {
-    // The maintenance uses the app's database connection
-    await global.__postgresSqlClient?.end()
-    global.__postgresSqlClient = undefined
-})
-
 test('access log keeps months ahead, and drops the months that ended more than the retention period ago', async ({}, testInfo) => {
     const ip = `10.9.${Math.floor(testInfo.workerIndex / 250)}.${testInfo.workerIndex % 250 + 1}`
     const image = await imageId(GEORGIA, 'IMG_0001.jpg')

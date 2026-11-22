@@ -6,7 +6,7 @@ import { expect, test, type APIRequestContext } from '@playwright/test'
 import sharp from 'sharp'
 
 import { fixturesFolder, photosFolder } from './env'
-import { ARMENIA, FAMILY, GEORGIA, asAdmin, asUser, asViewer, cookieHeader, db, imageId, logCount, noiseAlbum, wait } from './helpers'
+import { ARMENIA, FAMILY, GEORGIA, asAdmin, asUser, asViewer, cookieHeader, db, imageId, logCount, noiseAlbum, settled, wait } from './helpers'
 
 async function image(request: APIRequestContext, url: string, type = 'image/jpeg') {
     const response = await request.get(url)
@@ -432,6 +432,7 @@ test.describe('album download', () => {
         const context = await browser.newContext({ storageState: asUser })
         try {
             await writeFile(copy, await readFile(join(fixturesFolder, 'photos', ARMENIA, 'IMG_0102.jpg')))
+            await settled(copy)
             expect((await request.get(encodeURI(bundle))).status()).toBe(200)
             const ids = [await imageId(ARMENIA, 'IMG_0101.jpg'), await imageId(ARMENIA, 'IMG_0102.jpg'), await imageId(bundle, 'img_0102.jpg')]
 

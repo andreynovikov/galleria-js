@@ -5,4 +5,6 @@ export async function register() {
         return
     const { scheduleLogMaintenance } = await import('./lib/log-retention')
     scheduleLogMaintenance()
+    const { schedulePhotoScan } = await import('./lib/images')
+    schedulePhotoScan()
 }

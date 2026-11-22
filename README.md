@@ -26,7 +26,16 @@ Last two examples are useful for blogging – photos can be inserted in text as 
 
 ## Maintenance
 
-New and removed files are picked up automatically when a bundle is viewed. Two URL parameters force more expensive work and are available only to administrators, listed in `ADMIN_ID` as comma-separated `provider:id` pairs (for example `ADMIN_ID=github:12345,vk:67890`). For other visitors they are ignored.
+Photos are managed as files: a folder of `.jpg` files under `PHOTOS_FOLDER` is a bundle, at the same path in the URL. The app keeps their metadata in the database and follows the folder by itself:
+
+* **New folders** appear on the entrance page within `SYNC_INTERVAL_MINUTES` (10 by default), when the app scans the whole folder; it also scans at start. Opening a bundle's URL imports it at once.
+* **Added, removed and edited photos** are picked up the same way, or when the bundle is viewed. An edited photo (a new caption or keywords, or a replaced file) is recognized by its size and modification time; its metadata is read again and its thumbnails are made again.
+* **Files being copied** are left alone until they haven't changed for a minute, so a half-copied photo is never imported.
+* **A removed folder** has its photos removed from the database at the next scan. If the scan finds no bundles at all (the photos disk isn't mounted, say), it removes nothing.
+
+Thumbnails are cached in a `thumbs` folder inside each bundle folder.
+
+Two URL parameters force more expensive work and are available only to administrators, listed in `ADMIN_ID` as comma-separated `provider:id` pairs (for example `ADMIN_ID=github:12345,vk:67890`). For other visitors they are ignored.
 
 * `?updatemetadata=1` on a bundle page re-reads metadata (dimensions, captions, keywords, shooting time) of every photo in the bundle
 * `?format=thumbnail&force=1` on a photo regenerates its cached thumbnail
@@ -51,7 +60,7 @@ Galleria runs in Docker on the same host as PostgreSQL and the photo archive, be
 ### 2. Configure
 
 Settings come from two files:
-* `.env`: committed, non-secret defaults (image sizes, the download limit, `SCREEN_CACHE_MB`, the memory kept for resized photos, `LOG_RETENTION_DAYS`, how long the access log is kept, and `CLIENT_HINTS`, see below).
+* `.env`: committed, non-secret defaults (image sizes, the download limit, `SCREEN_CACHE_MB`, the memory kept for resized photos, `LOG_RETENTION_DAYS`, how long the access log is kept, `SYNC_INTERVAL_MINUTES`, how often the photos folder is scanned (0 turns the scan off), and `CLIENT_HINTS`, see below).
 * `.env.local`: your deployment's settings and secrets. Create it next to `docker-compose.yaml`; it is never committed and never copied into the image.
 
 ```sh

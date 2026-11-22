@@ -73,6 +73,8 @@ export const env: Record<string, string> = {
     AUTH_MAILRU_ID: 'e2e', AUTH_MAILRU_SECRET: 'e2e',
     AUTH_VK_ID: 'e2e', AUTH_VK_SECRET: 'e2e',
     AUTH_YANDEX_ID: 'e2e', AUTH_YANDEX_SECRET: 'e2e',
+    // Tests sync albums themselves, a scan of the whole folder would race with the ones adding and removing files
+    SYNC_INTERVAL_MINUTES: '0',
     // Do not report test traffic
     GOOGLE_ANALYTICS_ID: '',
     GOOGLE_ANALYTICS_API_SECRET: '',

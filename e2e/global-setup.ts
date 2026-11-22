@@ -1,12 +1,23 @@
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import postgres from 'postgres'
 
 import { authDir, dataDir, env, fixturesFolder, photosFolder, users } from './env'
-import { bundles } from './helpers'
+import { bundles, settled } from './helpers'
 
 const root = join(__dirname, '..')
+
+/** Dates the copied photos back, as if copied a while ago: sync leaves files modified within the last minute */
+async function settleFolder(folder: string) {
+    for (const entry of await readdir(folder, { withFileTypes: true })) {
+        const path = join(folder, entry.name)
+        if (entry.isDirectory())
+            await settleFolder(path)
+        else
+            await settled(path)
+    }
+}
 
 async function createDatabase() {
     const sql = postgres({ database: 'postgres', onnotice: () => {} })
@@ -101,6 +112,7 @@ export default async function globalSetup() {
     // Photos are copied because the app writes thumbnails next to them and tests add and remove files
     await rm(dataDir, { recursive: true, force: true })
     await cp(join(fixturesFolder, 'photos'), photosFolder, { recursive: true })
+    await settleFolder(photosFolder)
 
     await createDatabase()
     await resetSchema()

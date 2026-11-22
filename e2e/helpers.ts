@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, utimes, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { expect, type Page } from '@playwright/test'
@@ -60,6 +60,15 @@ export function description(page: Page) {
     return page.locator('.yarl__slide_current .image_description')
 }
 
+/**
+ * Dates a file a couple of minutes back, as if copied a while ago: sync leaves files modified within the last minute
+ * for later, because they may still be being copied. Every call gives a time of its own, so a replaced file differs.
+ */
+export async function settled(path: string) {
+    const time = new Date(Date.now() - 2 * 60 * 1000)
+    await utimes(path, time, time)
+}
+
 export function wait(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms))
 }
@@ -99,8 +108,10 @@ export async function noiseAlbum(bundle: string, count: number, view: (bundle: s
     await rm(folder, { recursive: true, force: true })
     await mkdir(folder)
     try {
-        for (const name of names)
+        for (const name of names) {
             await writeFile(join(folder, name), noise)
+            await settled(join(folder, name))
+        }
         // A long sync goes on in the background
         await expect.poll(async () => {
             await view(bundle)

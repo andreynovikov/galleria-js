@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import type { Stats } from 'fs'
-import { mkdir, rename, rm, stat } from 'fs/promises'
+import { mkdir, readdir, rename, rm, stat } from 'fs/promises'
 import { basename, dirname, join } from 'path'
 import { Exifr } from 'exifr'
 import sharp from 'sharp'
@@ -72,6 +72,16 @@ function decodeString(value: unknown) {
 
 /** Thrown when an image has no database record */
 export class ImageNotFoundError extends Error {}
+
+/** Size and modification time of a photo file, recorded with its metadata so that sync notices when it changes */
+export interface FileVersion {
+    size: number
+    mtime: Date
+}
+
+export function fileVersion(stats: Stats): FileVersion {
+    return { size: stats.size, mtime: new Date(Math.floor(stats.mtimeMs)) }
+}
 
 /** Tags read by exifr, which gives dates as `Date` */
 interface Tags {
@@ -173,14 +183,35 @@ export default class Image implements Partial<ImageRecord> {
      * Adds a photo to the database. The row is inserted complete, with metadata and labels, in one transaction, so an
      * interrupted sync leaves no half-imported photos behind: the next sync sees the file as new again.
      */
-    static async create(bundle: string, name: string) {
-        const { data, labels } = await readMetadata(join(photosFolder, bundle, name))
-        await addImage(bundle, name, data, labels === undefined ? [] : await getLabelIds(labels))
+    static async create(bundle: string, name: string, version?: FileVersion) {
+        const path = join(photosFolder, bundle, name)
+        const { data, labels } = await readMetadata(path)
+        await addImage(bundle, name, { ...data, ...(version ?? fileVersion(await stat(path))) }, labels === undefined ? [] : await getLabelIds(labels))
     }
 
+    /** Deletes the photo whose file is gone, and its thumbnails */
     async delete() {
-        // Do nothing with file as it's already gone
+        await this.deleteThumbnails()
         await deleteImage(await this.getId())
+    }
+
+    /** Deletes the cached thumbnails of the photo, of every size and variant; they are made again when asked for */
+    async deleteThumbnails() {
+        const path = await this.ensurePath()
+        const folder = join(dirname(path), 'thumbs')
+        const name = basename(path)
+        let files: string[]
+        try {
+            files = await readdir(folder)
+        } catch (e) {
+            if ((e as NodeJS.ErrnoException)?.code === 'ENOENT')
+                return
+            throw e
+        }
+        // t<size>-<name>[-vertical][-locked].webp, see makeThumbnail
+        for (const file of files)
+            if (file.startsWith('t') && file.endsWith('.webp') && /^t[^-]+-(.+?)(-vertical)?(-locked)?\.webp$/.exec(file)?.[1] === name)
+                await rm(join(folder, file), { force: true })
     }
 
     async getId() {
@@ -258,11 +289,18 @@ export default class Image implements Partial<ImageRecord> {
         await setImageLabels(await this.getId(), labels)
     }
 
-    async updateMetadata() {
-        const { data, labels } = await readMetadata(await this.ensurePath())
+    /** Re-reads the metadata of the file, `version` being the file it is read from */
+    async updateMetadata(version?: FileVersion) {
+        const path = await this.ensurePath()
+        const { data, labels } = await readMetadata(path)
         if (labels !== undefined)
             await this.setLabels(labels)
-        await updateImage(await this.getId(), data)
+        await updateImage(await this.getId(), { ...data, ...(version ?? fileVersion(await stat(path))) })
+    }
+
+    /** Records the file version of a photo imported before versions were recorded, without reading it again */
+    async recordVersion(version: FileVersion) {
+        await updateImage(await this.getId(), version)
     }
 
     async getResized(width: number, restricted = false) {

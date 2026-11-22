@@ -1,10 +1,17 @@
-import { copyFile, mkdir, rm } from 'node:fs/promises'
+import { copyFile, mkdir, rename, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { expect, test } from '@playwright/test'
 
 import { fixturesFolder, photosFolder } from './env'
-import { ARMENIA, GEORGIA, asAdmin, db, description, imageId, thumbnail, thumbnails } from './helpers'
+import { ARMENIA, GEORGIA, asAdmin, db, description, imageId, settled, thumbnail, thumbnails } from './helpers'
+import { scanPhotos } from '../lib/images'
+
+/** Copies a photo in, dated as a finished copy: sync leaves files modified within the last minute for later */
+async function copyIn(source: string, target: string) {
+    await copyFile(source, target)
+    await settled(target)
+}
 
 test.describe('album sync', () => {
     test('picks up added, changed and removed files', async ({ page, browser }, testInfo) => {
@@ -25,23 +32,30 @@ test.describe('album sync', () => {
                 return await page.getByRole('listitem').filter({ has: link }).textContent()
             }
 
-            await copyFile(source, join(folder, 'a.jpg'))
+            await copyIn(source, join(folder, 'a.jpg'))
             await page.goto(bundle)
             await expect(thumbnails(page)).toHaveCount(1)
             expect(await albumCount()).toContain('(1)')
 
-            await copyFile(source, join(folder, 'b.jpg'))
+            await copyIn(source, join(folder, 'b.jpg'))
             await page.goto(bundle)
             await expect(thumbnails(page)).toHaveCount(2)
             expect(await albumCount()).toContain('(2)')
 
-            // Metadata is re-read only when an admin requests it
-            await copyFile(join(fixturesFolder, 'extra', 'updated.jpg'), join(folder, 'a.jpg'))
+            // A file saved over through a temporary one, as editors do, changes the folder: the next view reads its
+            // metadata again, and its thumbnails are made again
             const id = await imageId(bundle, 'a.jpg')
-            await page.goto(`${bundle}?updatemetadata=1`)
+            const thumbnailUrl = `${bundle}/a.jpg?format=thumbnail&size=s`
+            const before = await (await page.request.get(thumbnailUrl)).body()
+            const temporary = join(folder, 'a.jpg.part')
+            await copyIn(join(fixturesFolder, 'extra', 'updated.jpg'), temporary)
+            await rename(temporary, join(folder, 'a.jpg'))
+            await page.goto(bundle)
             await thumbnail(page, id).click()
-            await expect(description(page).locator('.title')).toHaveText('Без тегов')
+            await expect(description(page).locator('.title')).toHaveText('Обновлённое описание')
+            expect((await (await page.request.get(thumbnailUrl)).body()).equals(before)).toBe(false)
 
+            // Admins can still have all metadata read again
             const admin = await browser.newContext({ storageState: asAdmin })
             try {
                 const adminPage = await admin.newPage()
@@ -77,7 +91,7 @@ test.describe('album sync', () => {
         await rm(folder, { recursive: true, force: true })
         await mkdir(folder)
         try {
-            await copyFile(join(fixturesFolder, 'photos', ARMENIA, 'IMG_0102.jpg'), file)
+            await copyIn(join(fixturesFolder, 'photos', ARMENIA, 'IMG_0102.jpg'), file)
             expect((await request.get(encodeURI(bundle).replace('#', '%23'))).status()).toBe(200)
 
             await page.goto('/')
@@ -118,7 +132,7 @@ test.describe('album sync', () => {
         await mkdir(folder)
         try {
             for (const name of names)
-                await copyFile(source, join(folder, name))
+                await copyIn(source, join(folder, name))
             const responses = await Promise.all(Array.from({ length: 4 }, () => request.get(bundle)))
             for (const response of responses)
                 expect(response.status()).toBe(200)
@@ -147,7 +161,7 @@ test.describe('album sync', () => {
             // Restricted labels are resolved before the `Secret` label exists
             expect((await request.get(`${GEORGIA}/IMG_0003.jpg?format=original`)).status()).toBe(403)
 
-            await copyFile(join(fixturesFolder, 'extra', 'secret.jpg'), file)
+            await copyIn(join(fixturesFolder, 'extra', 'secret.jpg'), file)
             await page.goto(bundle)
             await expect(thumbnails(page)).toHaveCount(1)
             expect((await request.get(`${bundle}/a.jpg?format=original`)).status()).toBe(403)
@@ -157,6 +171,64 @@ test.describe('album sync', () => {
             await expect(page.getByRole('img', { name: 'Nothing found' })).toBeVisible()
         } finally {
             await rm(folder, { recursive: true, force: true })
+        }
+    })
+
+    test('leaves files being copied in for a later sync', async ({ page }, testInfo) => {
+        const bundle = `/copying-${testInfo.project.name}-${testInfo.repeatEachIndex}`
+        const folder = join(photosFolder, bundle)
+        const file = join(folder, 'a.jpg')
+        await rm(folder, { recursive: true, force: true })
+        await mkdir(folder)
+        try {
+            // Just written, as during a copy
+            await copyFile(join(fixturesFolder, 'photos', ARMENIA, 'IMG_0102.jpg'), file)
+            await page.goto(bundle)
+            await expect(page.getByRole('img', { name: 'Nothing found' })).toBeVisible()
+
+            // The copy is done, but the folder is the same as at that sync: views within a minute don't list it
+            // again. The periodic scan does.
+            await settled(file)
+            await page.goto(bundle)
+            await expect(page.getByRole('img', { name: 'Nothing found' })).toBeVisible()
+            await scanPhotos(bundle)
+            await page.goto(bundle)
+            await expect(thumbnails(page)).toHaveCount(1)
+        } finally {
+            // Removing the file changes the folder, so this view syncs and removes its row
+            await rm(file, { force: true })
+            await page.goto(bundle)
+            await rm(folder, { recursive: true, force: true })
+        }
+    })
+
+    test('scan imports albums nobody opened, and removes the ones whose folders are gone', async ({}, testInfo) => {
+        const parent = `/scan-${testInfo.project.name}-${testInfo.repeatEachIndex}`
+        const source = join(fixturesFolder, 'photos', ARMENIA, 'IMG_0102.jpg')
+        const count = async (bundle: string) =>
+            (await db()<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM image WHERE bundle = ${bundle}`)[0].n
+        await rm(join(photosFolder, parent), { recursive: true, force: true })
+        try {
+            for (const album of ['one', 'two/nested']) {
+                await mkdir(join(photosFolder, parent, album), { recursive: true })
+                await copyIn(source, join(photosFolder, parent, album, 'a.jpg'))
+            }
+            expect(await scanPhotos(parent)).toEqual({ synced: 2, removed: 0 })
+            expect(await count(`${parent}/one`)).toBe(1)
+            expect(await count(`${parent}/two/nested`)).toBe(1)
+
+            await rm(join(photosFolder, parent, 'two'), { recursive: true })
+            expect(await scanPhotos(parent)).toEqual({ synced: 1, removed: 1 })
+            expect(await count(`${parent}/two/nested`)).toBe(0)
+            expect(await count(`${parent}/one`)).toBe(1)
+
+            // A missing photos folder is an error, not an empty archive (an unmounted disk): nothing is removed
+            await rm(join(photosFolder, parent), { recursive: true })
+            expect(await scanPhotos(parent)).toEqual({ synced: 0, removed: 0 })
+            expect(await count(`${parent}/one`)).toBe(1)
+        } finally {
+            await rm(join(photosFolder, parent), { recursive: true, force: true })
+            await db()`DELETE FROM image WHERE bundle = ${parent} OR starts_with(bundle, ${parent + '/'})`
         }
     })
 })

@@ -37,9 +37,11 @@ export interface ImageRecord {
     censored: number
     /** `null` until read from the file, `{}` when it has none */
     exif: CameraSettings | null
+    /** File size when the metadata was read (with `mtime`), `null` for photos imported before it was recorded */
+    size: number | null
 }
 
-export type ImageUpdate = Partial<Pick<ImageRecord, 'width' | 'height' | 'orientation' | 'description' | 'stime' | 'exif'>>
+export type ImageUpdate = Partial<Pick<ImageRecord, 'width' | 'height' | 'orientation' | 'description' | 'stime' | 'exif' | 'size' | 'mtime'>>
 
 /** Camera settings shown in the lightbox, named as the EXIF tags */
 export type CameraSettings = {
@@ -359,14 +361,34 @@ export async function listImages(filters: ImageFilters, order: ImageOrder) {
 }
 
 export async function getBundleImages(bundle: string) {
-    const images = await sql<Pick<ImageRecord, 'id' | 'name'>[]>`
+    const images = await sql<Pick<ImageRecord, 'id' | 'name' | 'size' | 'mtime'>[]>`
       SELECT
         id,
-        name
+        name,
+        size,
+        mtime
       FROM image
       WHERE bundle = ${bundle}
     `
     return images
+}
+
+/** Albums in the database at `under` or below it (a bundle path, `''` for all) */
+export async function listBundlePaths(under: string) {
+    const rows = await sql<{ bundle: string }[]>`
+      SELECT DISTINCT bundle FROM image
+      ${under === '' ? sql`` : sql`WHERE bundle = ${under} OR starts_with(bundle, ${under + '/'})`}
+    `
+    return rows.map(row => row.bundle)
+}
+
+/** Deletes all photos of an album whose folder is gone */
+export async function deleteBundleImages(bundle: string) {
+    try {
+        await sql`DELETE FROM image WHERE bundle = ${bundle}`
+    } finally {
+        invalidateListings()
+    }
 }
 
 export async function getRandomImages(limit: number, censored: number) {

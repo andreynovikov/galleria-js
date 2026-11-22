@@ -105,7 +105,29 @@ function notModified(ifNoneMatch: string | null, etag: string) {
     return ifNoneMatch.split(',').some(tag => opaque(tag) === opaque(etag))
 }
 
+/** Whether a file is gone, for example deleted while a thumbnail of it was being made */
+async function isGone(path: string) {
+    try {
+        await stat(path)
+        return false
+    } catch (e) {
+        return (e as NodeJS.ErrnoException)?.code === 'ENOENT'
+    }
+}
+
 export async function GET(request: NextRequest) {
+    try {
+        return await respond(request)
+    } catch (e) {
+        // The photo was removed while its response was being made: it is missing, not a server error
+        const photoPath = decodePath(request.nextUrl.pathname.split('/').filter(segment => segment !== ''))
+        if (photoPath !== null && await isGone(join(process.env.PHOTOS_FOLDER as string, photoPath)))
+            return new Response('Not found', { status: 404 })
+        throw e
+    }
+}
+
+async function respond(request: NextRequest) {
     const session = await getSession()
     const ip = clientIp(request.headers)
     const format = request.nextUrl.searchParams.get('format')

@@ -7,7 +7,7 @@ import NothingFound from './nothing-found'
 
 import { getRestrictedLabels, listImages, parseImageOrder, resolveLabels } from '@/lib/db'
 import { downloadMaxImages, thumbnailWidths } from '@/lib/image'
-import { syncBundle } from '@/lib/images'
+import { syncBundleOnView } from '@/lib/images'
 import { bool, param, queryString, urlPath, type SearchParams } from '@/lib/utils'
 import { censorshipLevel, getSession, isAdmin } from '@/auth'
 
@@ -70,7 +70,7 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
     if (bundle && labels === undefined && notlabels === undefined && censoredParam === undefined) {
         // Re-reading metadata of the whole album is expensive, so only admins may ask for it
         const shouldUpdateMetadata = isAdmin(session) && bool(param(searchParams, 'updatemetadata'))
-        const sync = syncBundle(bundle, shouldUpdateMetadata)
+        const sync = syncBundleOnView(bundle, shouldUpdateMetadata)
         try {
             syncing = !await settlesWithin(sync, syncWait)
         } catch (e) {
