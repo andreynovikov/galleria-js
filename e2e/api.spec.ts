@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -5,7 +6,7 @@ import { expect, test, type APIRequestContext } from '@playwright/test'
 import sharp from 'sharp'
 
 import { fixturesFolder, photosFolder } from './env'
-import { ARMENIA, FAMILY, GEORGIA, asAdmin, asUser, asViewer, imageId } from './helpers'
+import { ARMENIA, FAMILY, GEORGIA, asAdmin, asUser, asViewer, db, imageId } from './helpers'
 
 async function image(request: APIRequestContext, url: string, type = 'image/jpeg') {
     const response = await request.get(url)
@@ -79,6 +80,29 @@ test.describe('image URLs', () => {
     test('serve screen image scaled by ratio', async ({ request }) => {
         const { width } = await image(request, `${GEORGIA}/IMG_0001.jpg?ratio=0.5`)
         expect(width).toBe(600)
+    })
+
+    test('log every request of resized images, also served from memory', async ({ request }, testInfo) => {
+        // An IP and a ratio unique to this test, so its log rows are its own and its versions are not cached yet
+        const hash = createHash('sha1').update(`${testInfo.testId}-${testInfo.retry}`).digest()
+        const ip = `10.3.${hash[0]}.${hash[1]}`
+        // ACTION_VIEW, and ACTION_LOCKED for the restricted photo
+        const photos = [['IMG_0001.jpg', 3], ['IMG_0003.jpg', 7]] as const
+        const expected: [number, number][] = []
+        for (const [name, action] of photos) {
+            const url = `${GEORGIA}/${name}?ratio=0.35`
+            const first = await request.get(url, { headers: { 'x-real-ip': ip } })
+            const second = await request.get(url, { headers: { 'x-real-ip': ip } })
+            expect(first.status(), name).toBe(200)
+            expect(second.status(), name).toBe(200)
+            expect((await second.body()).equals(await first.body()), name).toBe(true)
+            const id = await imageId(GEORGIA, name)
+            expected.push([id, action], [id, action])
+        }
+        await expect.poll(async () => {
+            const rows = await db()<{ image: number, status: number }[]>`SELECT image, status FROM log WHERE ip = ${ip}`
+            return rows.map(row => [row.image, row.status]).sort()
+        }).toEqual(expected.sort())
     })
 
     test('reject invalid ratio', async ({ request }) => {

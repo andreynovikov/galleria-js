@@ -500,7 +500,14 @@ export async function writeLog(image: number, status: number, ip: string, visito
         ctime: new Date(),
         meta: meta === null ? null : sql.json(meta)
     }
-    await sql`INSERT INTO log ${sql(entry)}`
+    try {
+        await sql`INSERT INTO log ${sql(entry)}`
+    } catch (e) {
+        // The photo was deleted by a sync meanwhile: its log rows are deleted with it anyway
+        if (e instanceof postgres.PostgresError && e.constraint_name === 'log_image_fkey')
+            return
+        throw e
+    }
 }
 
 export async function getLogUsers(filters: LogFilters) {

@@ -51,7 +51,7 @@ Galleria runs in Docker on the same host as PostgreSQL and the photo archive, be
 ### 2. Configure
 
 Settings come from two files:
-* `.env`: committed, non-secret defaults (image sizes and the download limit).
+* `.env`: committed, non-secret defaults (image sizes, the download limit and `SCREEN_CACHE_MB`, the memory kept for resized photos).
 * `.env.local`: your deployment's settings and secrets. Create it next to `docker-compose.yaml`; it is never committed and never copied into the image.
 
 ```sh
@@ -124,7 +124,7 @@ location /photos/_next/static/ {
 }
 ```
 
-Photos are resized on request, so consider rate limiting `*.jpg` URLs (for example with nginx `limit_req`).
+Photos are resized on request, so consider rate limiting `*.jpg` URLs (for example with nginx `limit_req`). Resized screen and export versions are kept in memory, up to `SCREEN_CACHE_MB` megabytes (256 by default, 0 turns it off), so leave the container that much memory on top of what Node needs. Don't cache `*.jpg` responses in the web server: views are logged only when requests reach the app.
 
 ### Updating
 

@@ -6,6 +6,7 @@ import { decode } from 'utf8'
 
 import { getImageById, getImageByName, addImage, deleteImage, updateImage, getLabelIds, getImageLabels, setImageLabels } from './db'
 import type { ImageRecord, ImageUpdate, Label } from './db'
+import { BufferCache } from './cache'
 
 export const thumbnailWidths: Record<string, number> = JSON.parse(process.env.THUMBNAIL_WIDTH as string)
 /** Most photos one album download may contain: each one is resized while the archive is built */
@@ -16,6 +17,26 @@ const photosFolder = process.env.PHOTOS_FOLDER as string
 const lockBuffer = Buffer.from(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-lock-password"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z" /><path d="M8 11v-4a4 4 0 1 1 8 0v4" /><path d="M15 16h.01" /><path d="M12.01 16h.01" /><path d="M9.02 16h.01" /></svg>
 `)
+
+/** Rasterized lock watermarks: their width follows the image size, so there are a few hundred at most */
+const locks = new BufferCache(8 * 1024 * 1024)
+
+/** Semi-transparent lock watermark of the given width, with the given alpha (0–255) */
+function lock(width: number, alpha: number) {
+    return locks.get(`${width}-${alpha}`, () => sharp(lockBuffer)
+        .resize(width)
+        .composite([{
+            input: Buffer.from([0, 0, 0, alpha]),
+            raw: {
+                width: 1,
+                height: 1,
+                channels: 4,
+            },
+            tile: true,
+            blend: 'dest-in',
+        }])
+        .toBuffer())
+}
 
 export interface ExifInfo {
     FocalLength?: number
@@ -207,24 +228,10 @@ export default class Image implements Partial<ImageRecord> {
             const imageWidth = this.width ?? width
             const imageHeight = this.height ?? width
             const lockWidth = imageWidth > imageHeight ? width * imageHeight / imageWidth : width
-            const lock = await sharp(lockBuffer)
-                .resize(Math.floor(lockWidth * 0.5))
-                .composite([{
-                    input: Buffer.from([0, 0, 0, 127]),
-                    raw: {
-                        width: 1,
-                        height: 1,
-                        channels: 4,
-                    },
-                    tile: true,
-                    blend: 'dest-in',
-                }])
-                .toBuffer()
-
             image = image
                 .blur(5)
                 .composite([{
-                    input: lock,
+                    input: await lock(Math.floor(lockWidth * 0.5), 127),
                     gravity: 'center',
                 }])
         }
@@ -260,24 +267,10 @@ export default class Image implements Partial<ImageRecord> {
             .resize(vertical ? { height: thumbnailWidths[size] } : { width: thumbnailWidths[size] })
         // Put lock watermark if it is restricted
         if (restricted) {
-            const lock = await sharp(lockBuffer)
-                .resize(Math.floor(thumbnailWidths[size] * 0.4))
-                .composite([{
-                    input: Buffer.from([0, 0, 0, 64]),
-                    raw: {
-                        width: 1,
-                        height: 1,
-                        channels: 4,
-                    },
-                    tile: true,
-                    blend: 'dest-in',
-                }])
-                .toBuffer()
-
             thumbnail = thumbnail
                 .blur(5)
                 .composite([{
-                    input: lock,
+                    input: await lock(Math.floor(thumbnailWidths[size] * 0.4), 64),
                     gravity: 'center',
                 }])
         }
