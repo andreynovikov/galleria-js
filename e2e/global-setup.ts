@@ -90,7 +90,12 @@ async function createSessions() {
 
     await mkdir(authDir, { recursive: true })
     for (const [key, user] of Object.entries(users)) {
-        const saved = await test.saveUser(test.createUser({ name: user.name, email: user.email }))
+        // As auth.ts keeps them: under an e-mail of the provider account, with the reported one in contactEmail
+        const saved = await test.saveUser(test.createUser({
+            name: user.name,
+            email: `${user.provider}-${user.id}@accounts.invalid`,
+            contactEmail: user.email
+        }))
         const { headers, cookies } = await test.login({
             userId: saved.id,
             session: { visitorId: user.id, provider: user.provider, censorship: user.censorship }

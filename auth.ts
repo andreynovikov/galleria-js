@@ -10,8 +10,19 @@ import { sendEvent } from './lib/ga'
 
 const basePath = process.env.BASE_PATH ?? ''
 
-/** Placeholder for VK accounts without e-mail: Better Auth requires one, but the visitor table does not */
-const noEmailDomain = '@vk.invalid'
+/**
+ * Users are kept under an e-mail of their own provider account, `<provider>-<account id>@accounts.invalid`, so no
+ * two accounts ever share a user. Better Auth links accounts with the same e-mail into one user, whose name, picture
+ * and e-mail every sign-in overwrites, so one provider's account could have another's shown as its profile. The
+ * e-mail the provider reports (if any) is kept in `contactEmail`.
+ */
+function accountUser(provider: string, id: unknown, email: unknown) {
+    return {
+        email: `${provider}-${String(id)}@accounts.invalid`,
+        emailVerified: true,
+        contactEmail: typeof email === 'string' && email !== '' ? email : null
+    }
+}
 
 /** Sign-in providers, in the order they are shown on the sign-in page */
 export const providers = [
@@ -57,11 +68,17 @@ export const authOptions = {
             censorship: { type: 'number', required: false, input: false }
         }
     },
+    user: {
+        additionalFields: {
+            // Set from the provider profile on every sign-in (see accountUser), which also overwrites any value a
+            // client sets; Better Auth leaves out profile fields that aren't client input
+            contactEmail: { type: 'string', required: false }
+        }
+    },
     account: {
+        // Every account has a user of its own (accountUser), so there is nothing to link
         accountLinking: {
-            // Users with the same e-mail are linked into one in-memory user, the visitor is still chosen by
-            // provider account. Without trust, signing in with second provider would fail with `account_not_linked`.
-            trustedProviders: providers.map(provider => provider.id)
+            enabled: false
         }
     },
     onAPIError: {
@@ -76,21 +93,28 @@ export const authOptions = {
         trustedProxyHeaders: true
     },
     socialProviders: {
-        github: credentials('github'),
-        google: credentials('google'),
+        github: {
+            ...credentials('github'),
+            mapProfileToUser: profile => accountUser('github', profile.id, profile.email)
+        },
+        google: {
+            ...credentials('google'),
+            mapProfileToUser: profile => accountUser('google', profile.sub, profile.email)
+        },
         vk: {
             ...credentials('vk'),
             disableDefaultScope: true,
             scope: ['email'],
-            mapProfileToUser: profile => ({
-                email: profile.user.email || `${profile.user.user_id}${noEmailDomain}`
-            })
+            mapProfileToUser: profile => accountUser('vk', profile.user.user_id, profile.user.email)
         }
     },
     plugins: [
         genericOAuth({
             config: [
-                yandex(credentials('yandex')),
+                {
+                    ...yandex(credentials('yandex')),
+                    mapProfileToUser: profile => accountUser('yandex', profile.id, profile.email)
+                },
                 {
                     providerId: 'mailru',
                     ...credentials('mailru'),
@@ -107,9 +131,11 @@ export const authOptions = {
                             name: profile.name,
                             email: profile.email,
                             image: profile.image,
-                            emailVerified: true
+                            // Not known, and not needed: accounts are never linked (accountUser)
+                            emailVerified: false
                         }
-                    }
+                    },
+                    mapProfileToUser: profile => accountUser('mailru', profile.id, profile.email)
                 }
             ]
         })
@@ -130,7 +156,7 @@ export const authOptions = {
                         return false
                     const visitor = await getUser(account.accountId, account.providerId, {
                         name: user.name,
-                        email: user.email.endsWith(noEmailDomain) ? null : user.email,
+                        email: contactEmail(user),
                         image: user.image ?? null
                     })
                     return {
@@ -152,6 +178,12 @@ export const authOptions = {
 
 export const auth = betterAuth(authOptions)
 
+/** The e-mail the provider reported for the user's account, if any */
+function contactEmail(user: object) {
+    const value = (user as { contactEmail?: unknown }).contactEmail
+    return typeof value === 'string' && value !== '' ? value : null
+}
+
 export interface Session {
     user: Visitor
 }
@@ -169,7 +201,7 @@ export async function getSessionFromHeaders(headers: Headers): Promise<Session |
             provider,
             censorship: censorship ?? 0,
             name: user.name || null,
-            email: user.email.endsWith(noEmailDomain) ? null : user.email,
+            email: contactEmail(user),
             image: user.image ?? null
         }
     }
