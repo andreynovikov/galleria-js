@@ -102,29 +102,81 @@ The app listens on `127.0.0.1:3000`. Logs go to the systemd journal: `journalctl
 
 ### 4. Front web server
 
-Proxy requests to `127.0.0.1:3000`:
-* Pass the client address in `X-Real-IP`, and overwrite `X-Forwarded-For` instead of appending to it. These headers are used for access logs and for the sign-in rate limit.
-* Pass `X-Forwarded-Host` and `X-Forwarded-Proto`, which are used to build sign-in redirects when `BETTER_AUTH_URL` is not set.
+The app listens on `127.0.0.1:3000` only, behind a front web server, which has to:
+* **Pass the client address.** Set `X-Real-IP` to it and overwrite `X-Forwarded-For` instead of appending to it. The app trusts these headers for access logs, `/history` and the sign-in rate limit, so a value sent by the client must never reach it. If the web server is itself behind a CDN or another proxy, restore the client address first (nginx `set_real_ip_from` and `real_ip_header`).
+* **Pass `X-Forwarded-Host` and `X-Forwarded-Proto`,** which are used to build sign-in redirects when `BETTER_AUTH_URL` is not set.
+* **Limit request rates.** Screen and export versions are resized on request, a first view of an album generates its thumbnails, and server actions (lightbox descriptions, view and zoom logging, related labels) are public endpoints. The app limits only sign-in attempts itself.
+* **Not buffer album downloads,** so the archive is built only as fast as the client receives it.
+* **Not cache `*.jpg` responses:** views are logged only when requests reach the app.
+* **Not add security headers.** The app sends its own `Content-Security-Policy`, and duplicate policies are both enforced.
 
-Static assets are copied to `.docker/static/` next to `docker-compose.yaml` on every start, so the web server can serve them directly. An nginx example for `BASE_PATH=/photos`:
+Static assets are copied to `.docker/static/` next to `docker-compose.yaml` on every start, so the web server can serve them directly.
+
+An nginx example for `BASE_PATH=/photos`. The proxy settings shared by its locations go into a file of their own, `/etc/nginx/snippets/galleria-proxy.conf`:
 
 ```nginx
-location /photos/ {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $remote_addr;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Proto $scheme;
+proxy_pass http://127.0.0.1:3000;
+proxy_set_header Host $host;
+# Overwritten, never appended to: the app trusts them
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $remote_addr;
+proxy_set_header X-Forwarded-Host $host;
+proxy_set_header X-Forwarded-Proto $scheme;
+```
+
+In the `http` block, the rate limit zones (per client address):
+
+```nginx
+# Pages and server actions (POST requests to page URLs)
+limit_req_zone $binary_remote_addr zone=galleria_requests:10m rate=10r/s;
+# All photo URLs: opening and scrolling a large album loads hundreds of thumbnails
+limit_req_zone $binary_remote_addr zone=galleria_images:10m rate=20r/s;
+# Screen and export versions, which are resized on request (requests with an empty key are not limited)
+map $arg_format $galleria_resize_key {
+    thumbnail "";
+    original  "";
+    default   $binary_remote_addr;
+}
+limit_req_zone $galleria_resize_key zone=galleria_resize:10m rate=5r/s;
+limit_req_status 429;
+```
+
+In the `server` block:
+
+```nginx
+# The landing page. Without an exact location, nginx would redirect /photos to /photos/, and Next back
+location = /photos {
+    include snippets/galleria-proxy.conf;
+    limit_req zone=galleria_requests burst=100 nodelay;
 }
 
-location /photos/_next/static/ {
+location /photos/ {
+    include snippets/galleria-proxy.conf;
+    limit_req zone=galleria_requests burst=100 nodelay;
+}
+
+location ~* ^/photos/.+\.jpg$ {
+    include snippets/galleria-proxy.conf;
+    limit_req zone=galleria_images burst=300 nodelay;
+    limit_req zone=galleria_resize burst=30 nodelay;
+}
+
+location = /photos/download {
+    include snippets/galleria-proxy.conf;
+    limit_req zone=galleria_requests burst=100 nodelay;
+    # Otherwise nginx reads the whole archive into a temporary file as fast as the app can make it
+    proxy_buffering off;
+}
+
+location ^~ /photos/_next/static/ {
     alias /path/to/galleria-js/.docker/static/;
     expires 1y;
 }
 ```
 
-Photos are resized on request, so consider rate limiting `*.jpg` URLs (for example with nginx `limit_req`). Resized screen and export versions are kept in memory, up to `SCREEN_CACHE_MB` megabytes (256 by default, 0 turns it off), so leave the container that much memory on top of what Node needs. Don't cache `*.jpg` responses in the web server: views are logged only when requests reach the app.
+The rates allow fast scrolling and flipping through the lightbox from one address; raise them if many visitors share one (an office or a mobile carrier NAT). Rejected requests get 429.
+
+Resized screen and export versions are kept in memory, up to `SCREEN_CACHE_MB` megabytes (256 by default, 0 turns it off), so leave the container that much memory on top of what Node needs.
 
 ### Updating
 

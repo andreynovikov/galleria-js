@@ -6,6 +6,9 @@ tsconfig.tsbuildinfo
 /e2e/.data/
 /test-results/
 /playwright-report/
+/e2e/.nginx/
+/test-results-nginx/
+/playwright-report-nginx/
 /blob-report/
 
 # Local analysis notes

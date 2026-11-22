@@ -10,6 +10,12 @@ loadEnvConfig(root, false, { info: () => {}, error: console.error })
 
 export const port = Number(process.env.E2E_PORT ?? 3100)
 export const baseURL = `http://localhost:${port}`
+/**
+ * For the tests behind nginx (playwright.nginx.config.ts, `npm run test:e2e:nginx`): the app's base path, and the
+ * origin of nginx, which is the public one. The main tests use neither.
+ */
+export const basePath = process.env.E2E_BASE_PATH ?? ''
+export const publicURL = process.env.E2E_PUBLIC_URL ?? baseURL
 
 export const dataDir = join(root, 'e2e', '.data')
 export const photosFolder = join(dataDir, 'photos')
@@ -58,7 +64,9 @@ export const env: Record<string, string> = {
     ADMIN_ID: `${users.admin.provider}:${users.admin.id}`,
     // Test-only secret, random enough to not trigger Better Auth entropy warning
     AUTH_SECRET: 'e2e-7f3c9a1d5b8e2f6a0c4d9b7e1a3f5c8d2b6e0a4f',
-    BETTER_AUTH_URL: baseURL,
+    // An origin: a path here would become Better Auth's base path
+    BETTER_AUTH_URL: publicURL,
+    BASE_PATH: basePath,
     // Providers are never contacted, but they need some configuration to be listed on the sign-in page
     AUTH_GITHUB_ID: 'e2e', AUTH_GITHUB_SECRET: 'e2e',
     AUTH_GOOGLE_ID: 'e2e', AUTH_GOOGLE_SECRET: 'e2e',

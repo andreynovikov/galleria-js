@@ -58,9 +58,18 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run Playwright tests
         run: npx playwright test
+      - name: Run tests behind nginx
+        if: ${{ !cancelled() }}
+        run: |
+          # The README nginx example, in front of the app built with BASE_PATH=/photos. nginx comes with GitHub's
+          # Ubuntu runner images; it runs as the runner user, the service stays off.
+          [ -x /usr/sbin/nginx ] || (sudo apt-get update && sudo apt-get install -y nginx)
+          npm run test:e2e:nginx
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            playwright-report-nginx/
           retention-days: 14

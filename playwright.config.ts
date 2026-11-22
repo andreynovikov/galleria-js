@@ -21,13 +21,15 @@ export default defineConfig({
     projects: [
         {
             name: 'desktop',
-            use: { ...devices['Desktop Chrome'] }
+            use: { ...devices['Desktop Chrome'] },
+            // Runs behind nginx, with playwright.nginx.config.ts
+            testIgnore: /nginx\.spec\.ts/
         },
         {
             name: 'mobile',
             use: { ...devices['Pixel 7'] },
             // Plain HTTP checks do not depend on the browser
-            testIgnore: /api\.spec\.ts/
+            testIgnore: /(api|nginx)\.spec\.ts/
         }
     ],
     webServer: {

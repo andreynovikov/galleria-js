@@ -6,7 +6,7 @@ import { expect, test, type APIRequestContext } from '@playwright/test'
 import sharp from 'sharp'
 
 import { fixturesFolder, photosFolder } from './env'
-import { ARMENIA, FAMILY, GEORGIA, asAdmin, asUser, asViewer, db, imageId } from './helpers'
+import { ARMENIA, FAMILY, GEORGIA, asAdmin, asUser, asViewer, cookieHeader, db, imageId, logCount, noiseAlbum, wait } from './helpers'
 
 async function image(request: APIRequestContext, url: string, type = 'image/jpeg') {
     const response = await request.get(url)
@@ -444,63 +444,31 @@ test.describe('album download', () => {
     })
 
     test('is built as fast as it is read, and stops when the client disconnects', async ({ request, baseURL }, testInfo) => {
-        // Unique album without labels. Photos of noise don't compress, so they fill the buffers between the server and
-        // the client quickly. Loopback TCP buffers alone hold 10 MB or more, so the archive is about 40 MB.
-        const bundle = `/download-${testInfo.project.name}-${testInfo.repeatEachIndex}`
-        const folder = join(photosFolder, bundle)
         const count = 80
-        const noise = await sharp({ create: { width: 1200, height: 800, channels: 3, background: '#808080', noise: { type: 'gaussian', mean: 128, sigma: 64 } } })
-            .jpeg()
-            .toBuffer()
-        const names = Array.from({ length: count }, (_, i) => `n${String(i).padStart(2, '0')}.jpg`)
-        const rows = async (query: 'image' | 'log', value: string) => {
-            const [{ n }] = query === 'image'
-                ? await db()<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM image WHERE bundle = ${value}`
-                : await db()<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM log WHERE ip = ${value}`
-            return n
-        }
-        const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-        await rm(folder, { recursive: true, force: true })
-        await mkdir(folder)
+        const album = await noiseAlbum(`/download-${testInfo.project.name}-${testInfo.repeatEachIndex}`, count, bundle => request.get(bundle))
         try {
-            for (const name of names)
-                await writeFile(join(folder, name), noise)
-            // A long sync goes on in the background
-            await expect.poll(async () => {
-                await request.get(bundle)
-                return await rows('image', bundle)
-            }, { timeout: 30_000 }).toBe(count)
-            const ids = (await db()<{ id: number }[]>`SELECT id FROM image WHERE bundle = ${bundle} ORDER BY name`).map(row => row.id)
-
             // Read slowly with fetch: Playwright requests read the whole body
             const hash = createHash('sha1').update(`${testInfo.testId}-${testInfo.retry}`).digest()
             const ip = `10.4.${hash[0]}.${hash[1]}`
-            const state: { cookies: { name: string, value: string }[] } = JSON.parse(await readFile(asUser, 'utf8'))
-            const cookie = state.cookies.map(({ name, value }) => `${name}=${value}`).join('; ')
-            const response = await fetch(`${baseURL}/download?images=${ids.join()}`, { headers: { cookie, 'x-real-ip': ip } })
+            const response = await fetch(`${baseURL}/download?images=${album.ids.join()}`, { headers: { cookie: await cookieHeader(asUser), 'x-real-ip': ip } })
             expect(response.status).toBe(200)
             const reader = (response.body as ReadableStream<Uint8Array>).getReader()
             expect((await reader.read()).done).toBe(false)
 
             // Photos are logged when added: the server stops a few buffers ahead of the client
             await wait(2000)
-            const paused = await rows('log', ip)
+            const paused = await logCount(ip)
             expect(paused).toBeGreaterThan(0)
             expect(paused).toBeLessThan(count / 2)
 
             await reader.cancel()
             await wait(1000)
-            const stopped = await rows('log', ip)
+            const stopped = await logCount(ip)
             await wait(1000)
-            expect(await rows('log', ip)).toBe(stopped)
+            expect(await logCount(ip)).toBe(stopped)
             expect(stopped).toBeLessThan(count)
         } finally {
-            // Sync removes the rows of deleted files, a missing folder is just reported as not found
-            for (const name of names)
-                await rm(join(folder, name), { force: true })
-            await request.get(bundle)
-            await rm(folder, { recursive: true, force: true })
+            await album.remove()
         }
     })
 

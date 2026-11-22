@@ -10,6 +10,7 @@
         "lint": "eslint .",
         "typecheck": "next typegen && tsc --noEmit",
         "test:e2e": "playwright test",
+        "test:e2e:nginx": "E2E_BASE_PATH=/photos E2E_PUBLIC_URL=http://localhost:3200 playwright test -c playwright.nginx.config.ts",
         "test:e2e:photos": "node e2e/fixtures/generate-photos.mts"
     },
     "author": "Andrey Novikov",

@@ -11,7 +11,10 @@ const eslintConfig = defineConfig([
         'next-env.d.ts',
         'e2e/.data/**',
         'playwright-report/**',
+        'playwright-report-nginx/**',
         'test-results/**',
+        'test-results-nginx/**',
+        'e2e/.nginx/**',
         'blob-report/**',
     ]),
     {
