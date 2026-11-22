@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { ARMENIA, FAMILY, GEORGIA, imageId, thumbnail, thumbnails } from './helpers'
+import { ARMENIA, FAMILY, GEORGIA, imageId, lightbox, thumbnail, thumbnails } from './helpers'
 
 test.describe('gallery', () => {
     test('shows photos of an album', async ({ page }) => {
@@ -13,6 +13,23 @@ test.describe('gallery', () => {
         const image = thumbnails(page).first().locator('img')
         await expect(image).toHaveAttribute('src', /format=thumbnail/)
         await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete ? img.naturalWidth : 0)).toBeGreaterThan(0)
+    })
+
+    test('orders photos as asked, by shooting time when the order is unknown', async ({ page }) => {
+        // The lightbox opens the photo at an index of the list, so its first slide is the first photo in the order
+        const first = async (query: string) => {
+            await page.goto(`${GEORGIA}${query}#view-0-0`)
+            await expect(lightbox(page)).toBeVisible()
+            const src = await lightbox(page).locator('.yarl__slide_current img').getAttribute('src')
+            return src?.split('/').at(-1)
+        }
+        expect(await first('')).toBe('IMG_0001.jpg')
+        expect(await first('?-nav.order=-stime')).toBe('IMG_0003.jpg')
+        expect(await first('?-nav.order=-name')).toBe('IMG_0003.jpg')
+        expect(await first('?-nav.order=ctime')).toBe('IMG_0001.jpg')
+        // Other columns and unknown names used to be passed to ORDER BY and fail with 500
+        for (const order of ['-censored', 'nonexistent', '-'])
+            expect(await first(`?-nav.order=${order}`), order).toBe('IMG_0001.jpg')
     })
 
     test('loads thumbnails lazily and fades them in', async ({ page }) => {

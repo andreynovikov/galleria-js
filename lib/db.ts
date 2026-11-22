@@ -284,7 +284,19 @@ export async function listRelatedLabels(include: number[], exclude: number[], ce
     `
 }
 
-export async function listImages(filters: ImageFilters, order: string) {
+/** Columns photos can be listed by (`-nav.order`): shooting time, import time and file name */
+const imageOrders = ['stime', 'ctime', 'name'] as const
+type ImageOrderColumn = typeof imageOrders[number]
+/** A column, or a column after `-` for the reverse order */
+export type ImageOrder = ImageOrderColumn | `-${ImageOrderColumn}`
+
+/** The order asked for, or by shooting time when it is missing or unknown, so old or mistyped links still work */
+export function parseImageOrder(value: string | undefined): ImageOrder {
+    const column = value?.startsWith('-') ? value.slice(1) : value
+    return (imageOrders as readonly (string | undefined)[]).includes(column) ? value as ImageOrder : 'stime'
+}
+
+export async function listImages(filters: ImageFilters, order: ImageOrder) {
     const restrictedLabels = await getRestrictedLabels()
 
     const where = [sql`width > 0`] // list only images with width, otherwise ReactPhotoAlbum gets broken
@@ -311,8 +323,8 @@ export async function listImages(filters: ImageFilters, order: string) {
 
     where.push(sql`censored <= ${filters.censored}`)
 
-    const direction = order.charAt(0) === '-' ? sql`DESC` : sql`ASC`
-    const orderBy = order.charAt(0) === '-' ? order.substring(1) : order
+    const direction = order.startsWith('-') ? sql`DESC` : sql`ASC`
+    const orderBy = (order.startsWith('-') ? order.slice(1) : order) as ImageOrderColumn
 
     let join = sql``
     let group = sql``
@@ -342,7 +354,7 @@ export async function listImages(filters: ImageFilters, order: string) {
       ${labels.length > 0 ? sql`
       HAVING ${and(labels)}
       ` : sql``}
-      ORDER BY ${sql(orderBy)} ${direction}
+      ORDER BY ${sql(orderBy)} ${direction}, name ${direction}, id ${direction}
     `
     return images
 }

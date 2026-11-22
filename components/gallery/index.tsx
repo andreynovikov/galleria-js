@@ -5,7 +5,7 @@ import { after } from 'next/server'
 import Album, { type AlbumPhoto } from '@/components/album'
 import NothingFound from './nothing-found'
 
-import { getRestrictedLabels, listImages, resolveLabels } from '@/lib/db'
+import { getRestrictedLabels, listImages, parseImageOrder, resolveLabels } from '@/lib/db'
 import { downloadMaxImages, thumbnailWidths } from '@/lib/image'
 import { syncBundle } from '@/lib/images'
 import { bool, param, queryString, urlPath, type SearchParams } from '@/lib/utils'
@@ -84,7 +84,8 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
             after(() => sync.catch(e => console.error(`Can not sync ${bundle}:`, e)))
     }
 
-    const order = param(searchParams, '-nav.order') || 'stime'
+    // The lightbox URL has the photo index, so photos with the same time keep their order too
+    const order = parseImageOrder(param(searchParams, '-nav.order'))
 
     const images = await listImages({ bundle, labels, notlabels, from, till, censored }, order)
 
