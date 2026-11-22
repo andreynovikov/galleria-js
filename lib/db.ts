@@ -359,6 +359,14 @@ export async function getImageById(id: number) {
     return result.at(0)
 }
 
+/** Photos with the given ids, in no particular order; missing ids are left out */
+export async function getImagesByIds(ids: number[]) {
+    return await sql<ImageRecord[]>`
+      SELECT * FROM image
+      WHERE id = ANY(${ids}::int[])
+    `
+}
+
 export async function getImageByName(bundle: string, name: string) {
     const result = await sql<ImageRecord[]>`
       SELECT * FROM image

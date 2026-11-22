@@ -10,7 +10,11 @@ export class BufferCache {
 
     constructor(private readonly maxBytes: number) {}
 
-    async get(key: string, make: () => Promise<Buffer>): Promise<Buffer> {
+    /**
+     * The cached value, or the value made by `make`. With `store: false`, a value which is not cached or being made yet
+     * is made without caching it, so occasional bulk work doesn't evict what is used often.
+     */
+    async get(key: string, make: () => Promise<Buffer>, store = true): Promise<Buffer> {
         const cached = this.entries.get(key)
         if (cached !== undefined) {
             this.entries.delete(key)
@@ -18,6 +22,8 @@ export class BufferCache {
             return cached
         }
         let promise = this.pending.get(key)
+        if (promise === undefined && !store)
+            return make()
         if (promise === undefined) {
             promise = make()
                 .then(value => {

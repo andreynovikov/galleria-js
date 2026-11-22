@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readFile, stat } from 'node:fs/promises'
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { expect, test, type APIRequestContext } from '@playwright/test'
@@ -258,6 +258,29 @@ test.describe('censored photo', () => {
     })
 })
 
+/** Entries of a zip archive, read from its central directory */
+function unzip(body: Buffer) {
+    const end = body.lastIndexOf(Buffer.from('PK\x05\x06', 'latin1'))
+    expect(end, 'end of central directory').toBeGreaterThanOrEqual(0)
+    const count = body.readUInt16LE(end + 10)
+    let offset = body.readUInt32LE(end + 16)
+    const entries: { name: string, method: number, data: Buffer }[] = []
+    for (let i = 0; i < count; i++) {
+        expect(body.readUInt32LE(offset), 'central directory header').toBe(0x02014b50)
+        const method = body.readUInt16LE(offset + 10)
+        const size = body.readUInt32LE(offset + 20)
+        const nameLength = body.readUInt16LE(offset + 28)
+        const header = body.readUInt32LE(offset + 42)
+        const name = body.toString('utf8', offset + 46, offset + 46 + nameLength)
+        offset += 46 + nameLength + body.readUInt16LE(offset + 30) + body.readUInt16LE(offset + 32)
+
+        expect(body.readUInt32LE(header), 'local file header').toBe(0x04034b50)
+        const start = header + 30 + body.readUInt16LE(header + 26) + body.readUInt16LE(header + 28)
+        entries.push({ name, method, data: body.subarray(start, start + size) })
+    }
+    return entries
+}
+
 test.describe('album download', () => {
     test('redirects anonymous visitor to sign in', async ({ request }) => {
         const response = await request.get('/download?images=1,2', { maxRedirects: 0 })
@@ -275,14 +298,61 @@ test.describe('album download', () => {
         try {
             const response = await context.request.get(`/download?images=${ids.join()}`)
             expect(response.status()).toBe(200)
-            expect(response.headers()['content-disposition']).toBe('attachment; filename=images.zip')
+            // Named after the album
+            expect(response.headers()['content-disposition'])
+                .toBe(`attachment; filename="travel-Armenia-2016.zip"; filename*=UTF-8''travel-Armenia-2016.zip`)
             expect(response.headers()['content-type']).toBe('application/zip')
-            const body = await response.body()
-            expect(body.subarray(0, 4).toString('latin1')).toBe('PK\x03\x04')
-            expect(body.includes('IMG_0101.jpg')).toBe(true)
-            expect(body.includes('IMG_0102.jpg')).toBe(true)
+            const entries = unzip(await response.body())
+            expect(entries.map(entry => entry.name)).toEqual(['IMG_0101.jpg', 'IMG_0102.jpg'])
+            for (const entry of entries) {
+                // Stored as is, JPEG doesn't compress
+                expect(entry.method, entry.name).toBe(0)
+                const { format, width } = await sharp(entry.data).metadata()
+                expect(format, entry.name).toBe('jpeg')
+                expect(width, entry.name).toBe(1200)
+            }
         } finally {
             await context.close()
+        }
+    })
+
+    test('puts photos with the same name in album folders and names the archive after the albums', async ({ browser, request }, testInfo) => {
+        // Unique album with a copy of a photo without labels, under a name the Armenia album has too
+        const bundle = `/copy(${testInfo.project.name}-${testInfo.repeatEachIndex})`
+        const folder = join(photosFolder, bundle)
+        const copy = join(folder, 'img_0102.jpg')
+        await rm(folder, { recursive: true, force: true })
+        await mkdir(folder)
+        const context = await browser.newContext({ storageState: asUser })
+        try {
+            await writeFile(copy, await readFile(join(fixturesFolder, 'photos', ARMENIA, 'IMG_0102.jpg')))
+            expect((await request.get(bundle)).status()).toBe(200)
+            const ids = [await imageId(ARMENIA, 'IMG_0101.jpg'), await imageId(ARMENIA, 'IMG_0102.jpg'), await imageId(bundle, 'img_0102.jpg')]
+
+            // Names which differ only in case collide on Windows and macOS too
+            const mixed = await context.request.get(`/download?images=${ids.join()}`)
+            expect(mixed.status()).toBe(200)
+            expect(unzip(await mixed.body()).map(entry => entry.name))
+                .toEqual(['IMG_0101.jpg', 'travel/Armenia/2016/IMG_0102.jpg', `${bundle.slice(1)}/img_0102.jpg`])
+            // The albums have no path in common
+            expect(mixed.headers()['content-disposition']).toBe(`attachment; filename="images.zip"; filename*=UTF-8''images.zip`)
+
+            // Photos from several albums are named after the path they have in common
+            const travel = await context.request.get(`/download?images=${[ids[0], await imageId(GEORGIA, 'IMG_0001.jpg')].join()}`)
+            expect(travel.headers()['content-disposition']).toBe(`attachment; filename="travel.zip"; filename*=UTF-8''travel.zip`)
+
+            // The encoded name escapes the characters RFC 5987 doesn't allow
+            const single = await context.request.get(`/download?images=${ids[2]}`)
+            expect(unzip(await single.body()).map(entry => entry.name)).toEqual(['img_0102.jpg'])
+            const name = `copy(${testInfo.project.name}-${testInfo.repeatEachIndex})`
+            expect(single.headers()['content-disposition'])
+                .toBe(`attachment; filename="${name}.zip"; filename*=UTF-8''${name.replace('(', '%28').replace(')', '%29')}.zip`)
+        } finally {
+            await context.close()
+            // Sync removes the row of the deleted file, a missing folder is just reported as not found
+            await rm(copy, { force: true })
+            await request.get(bundle)
+            await rm(folder, { recursive: true, force: true })
         }
     })
 
@@ -297,11 +367,70 @@ test.describe('album download', () => {
             const id = await imageId(ARMENIA, 'IMG_0101.jpg')
             const repeated = await context.request.get(`/download?images=${Array(1001).fill(id).join()}`)
             expect(repeated.status()).toBe(200)
-            const body = await repeated.body()
-            // Zip archive has each name twice: in the entry header and in the central directory
-            expect(body.toString('latin1').split('IMG_0101.jpg').length - 1).toBe(2)
+            expect(unzip(await repeated.body()).map(entry => entry.name)).toEqual(['IMG_0101.jpg'])
         } finally {
             await context.close()
+        }
+    })
+
+    test('is built as fast as it is read, and stops when the client disconnects', async ({ request, baseURL }, testInfo) => {
+        // Unique album without labels. Photos of noise don't compress, so they fill the buffers between the server and
+        // the client quickly. Loopback TCP buffers alone hold 10 MB or more, so the archive is about 40 MB.
+        const bundle = `/download-${testInfo.project.name}-${testInfo.repeatEachIndex}`
+        const folder = join(photosFolder, bundle)
+        const count = 80
+        const noise = await sharp({ create: { width: 1200, height: 800, channels: 3, background: '#808080', noise: { type: 'gaussian', mean: 128, sigma: 64 } } })
+            .jpeg()
+            .toBuffer()
+        const names = Array.from({ length: count }, (_, i) => `n${String(i).padStart(2, '0')}.jpg`)
+        const rows = async (query: 'image' | 'log', value: string) => {
+            const [{ n }] = query === 'image'
+                ? await db()<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM image WHERE bundle = ${value}`
+                : await db()<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM log WHERE ip = ${value}`
+            return n
+        }
+        const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+        await rm(folder, { recursive: true, force: true })
+        await mkdir(folder)
+        try {
+            for (const name of names)
+                await writeFile(join(folder, name), noise)
+            // A long sync goes on in the background
+            await expect.poll(async () => {
+                await request.get(bundle)
+                return await rows('image', bundle)
+            }, { timeout: 30_000 }).toBe(count)
+            const ids = (await db()<{ id: number }[]>`SELECT id FROM image WHERE bundle = ${bundle} ORDER BY name`).map(row => row.id)
+
+            // Read slowly with fetch: Playwright requests read the whole body
+            const hash = createHash('sha1').update(`${testInfo.testId}-${testInfo.retry}`).digest()
+            const ip = `10.4.${hash[0]}.${hash[1]}`
+            const state: { cookies: { name: string, value: string }[] } = JSON.parse(await readFile(asUser, 'utf8'))
+            const cookie = state.cookies.map(({ name, value }) => `${name}=${value}`).join('; ')
+            const response = await fetch(`${baseURL}/download?images=${ids.join()}`, { headers: { cookie, 'x-real-ip': ip } })
+            expect(response.status).toBe(200)
+            const reader = (response.body as ReadableStream<Uint8Array>).getReader()
+            expect((await reader.read()).done).toBe(false)
+
+            // Photos are logged when added: the server stops a few buffers ahead of the client
+            await wait(2000)
+            const paused = await rows('log', ip)
+            expect(paused).toBeGreaterThan(0)
+            expect(paused).toBeLessThan(count / 2)
+
+            await reader.cancel()
+            await wait(1000)
+            const stopped = await rows('log', ip)
+            await wait(1000)
+            expect(await rows('log', ip)).toBe(stopped)
+            expect(stopped).toBeLessThan(count)
+        } finally {
+            // Sync removes the rows of deleted files, a missing folder is just reported as not found
+            for (const name of names)
+                await rm(join(folder, name), { force: true })
+            await request.get(bundle)
+            await rm(folder, { recursive: true, force: true })
         }
     })
 
@@ -311,9 +440,7 @@ test.describe('album download', () => {
         try {
             const response = await context.request.get(`/download?images=${ids.join()}`)
             expect(response.status()).toBe(200)
-            const body = await response.body()
-            expect(body.includes('IMG_0101.jpg')).toBe(true)
-            expect(body.includes('IMG_0102.jpg')).toBe(false)
+            expect(unzip(await response.body()).map(entry => entry.name)).toEqual(['IMG_0101.jpg'])
         } finally {
             await context.close()
         }

@@ -134,7 +134,8 @@ test.describe('signed-in visitor', () => {
         })
         const download = page.waitForEvent('download')
         await page.getByRole('button', { name: 'Скачать все фотографии' }).click()
-        expect((await download).suggestedFilename()).toBe('images.zip')
+        // Named after the album
+        expect((await download).suggestedFilename()).toBe('travel-Armenia-2016.zip')
         // A single browser request: no extra router fetch (which builds the archive twice) and no server actions
         // misdirected to the download route
         expect(requests).toEqual(['GET'])

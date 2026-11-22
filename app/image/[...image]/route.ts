@@ -6,7 +6,6 @@ import { after, type NextRequest } from 'next/server'
 
 import { censorshipLevel, getSession, isAdmin } from '@/auth'
 
-import { BufferCache } from '@/lib/cache'
 import Image, { ImageNotFoundError } from '@/lib/image'
 import { getRestrictedLabels, writeLog } from '@/lib/db'
 import { bool, clientIp, uaMeta, ACTION_ORIGINAL, ACTION_VIEW, ACTION_EXPORT, ACTION_THUMBNAIL, ACTION_LOCKED } from '@/lib/utils'
@@ -16,11 +15,6 @@ const exportMaxWidth = Number(process.env.EXPORT_MAX_WIDTH)
 const screenDelta = Number(process.env.SCREEN_DELTA)
 /** How long browsers and shared caches may use an image without asking again, in seconds */
 const maxAge = 60 * 60
-/**
- * Screen and export versions made on request, kept in memory. Every request still reaches this route, so access checks
- * and the log stay the same for cached versions.
- */
-const resized = new BufferCache((Number(process.env.SCREEN_CACHE_MB ?? 256) || 0) * 1024 * 1024)
 
 /*
  * https://www.ericburel.tech/blog/nextjs-stream-files#moving-to-route-handlers-its-not-that-easy
@@ -160,10 +154,9 @@ export async function GET(request: NextRequest) {
         width = Math.max(width, 1)
         if (imageWidth > width * screenDelta || restricted) {
             etag = entityTag(stats, `${width}${restricted ? '-locked' : ''}`)
-            // The validator identifies the file version, the width and the lock, the path identifies the file
-            const key = `${path}\0${etag}`
+            // Versions kept in memory still go through this route, so access checks and the log stay the same
             body = async () => {
-                const data = await resized.get(key, async () => (await image.getResized(width, restricted)).data)
+                const data = await image.getResizedCached(width, restricted, stats)
                 return { type: 'jpeg', size: data.length, stream: new Blob([new Uint8Array(data)]).stream() }
             }
             if (restricted)

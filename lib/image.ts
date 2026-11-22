@@ -1,3 +1,4 @@
+import type { Stats } from 'fs'
 import { mkdir, stat } from 'fs/promises'
 import { basename, dirname, join } from 'path'
 import { Exifr } from 'exifr'
@@ -17,6 +18,16 @@ const photosFolder = process.env.PHOTOS_FOLDER as string
 const lockBuffer = Buffer.from(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-lock-password"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2z" /><path d="M8 11v-4a4 4 0 1 1 8 0v4" /><path d="M15 16h.01" /><path d="M12.01 16h.01" /><path d="M9.02 16h.01" /></svg>
 `)
+
+declare global {
+    var __resizedImages: BufferCache | undefined
+}
+
+/**
+ * Screen and export versions made on request, kept in memory. Kept on `globalThis`, so the image and download routes
+ * share it.
+ */
+const resizedImages = global.__resizedImages ??= new BufferCache((Number(process.env.SCREEN_CACHE_MB ?? 256) || 0) * 1024 * 1024)
 
 /** Rasterized lock watermarks: their width follows the image size, so there are a few hundred at most */
 const locks = new BufferCache(8 * 1024 * 1024)
@@ -66,6 +77,15 @@ function decodeString(value: unknown) {
 /** Thrown when an image has no database record */
 export class ImageNotFoundError extends Error {}
 
+/** Tags read by exifr, which gives dates as `Date` */
+interface Tags {
+    [tag: string]: unknown
+    CreateDate?: Date
+    DateTimeDigitized?: Date
+    DateTimeOriginal?: Date
+    ModifyDate?: Date
+}
+
 /** Dimensions, caption, shooting time and keywords of a photo file */
 async function readMetadata(path: string): Promise<{ data: ImageUpdate, labels?: string[] }> {
     const exr = new Exifr({
@@ -78,9 +98,14 @@ async function readMetadata(path: string): Promise<{ data: ImageUpdate, labels?:
     })
     const { width, height, orientation } = await sharp(path).metadata()
     const data: ImageUpdate = { width, height, orientation: orientation ?? 0 }
-    await exr.read(path)
-    const info = await exr.parse()
-    await closeExifr(exr)
+    let info: Tags
+    try {
+        await exr.read(path)
+        // A file without any metadata gives nothing
+        info = (await exr.parse()) ?? {}
+    } finally {
+        await closeExifr(exr)
+    }
 
     const description = info['Caption'] || info['Headline'] || info['ObjectName']
     if (description !== undefined)
@@ -124,6 +149,14 @@ export default class Image implements Partial<ImageRecord> {
     static fromPath(path: string) {
         const image = new Image()
         image.path = join(photosFolder, path)
+        return image
+    }
+
+    /** A photo whose database row is already read */
+    static fromRecord(record: ImageRecord) {
+        const image = new Image()
+        Object.assign(image, record)
+        image.fetched = true
         return image
     }
 
@@ -239,6 +272,15 @@ export default class Image implements Partial<ImageRecord> {
         const { data, info } = await image.jpeg().toBuffer({ resolveWithObject: true })
 
         return { type: 'jpeg', size: info.size, data }
+    }
+
+    /**
+     * Resized version, from memory when it was made before. The file version (`stats` of the original) is part of the
+     * key, so a replaced file is resized again. With `store: false`, a missing version is not kept.
+     */
+    async getResizedCached(width: number, restricted: boolean, stats: Stats, store = true) {
+        const key = `${await this.ensurePath()}\0${stats.size}-${stats.mtimeMs}\0${width}${restricted ? '-locked' : ''}`
+        return await resizedImages.get(key, async () => (await this.getResized(width, restricted)).data, store)
     }
 
     async makeThumbnail(size = 'm', vertical = false, force = false, restricted = false) {
