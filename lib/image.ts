@@ -1,5 +1,6 @@
+import { randomUUID } from 'crypto'
 import type { Stats } from 'fs'
-import { mkdir, stat } from 'fs/promises'
+import { mkdir, rename, rm, stat } from 'fs/promises'
 import { basename, dirname, join } from 'path'
 import { Exifr } from 'exifr'
 import sharp from 'sharp'
@@ -28,6 +29,9 @@ declare global {
  * share it.
  */
 const resizedImages = global.__resizedImages ??= new BufferCache((Number(process.env.SCREEN_CACHE_MB ?? 256) || 0) * 1024 * 1024)
+
+/** Thumbnails being generated, by path: concurrent first requests of one share its generation */
+const thumbnailsInProgress = new Map<string, Promise<{ type: string, size: number, path: string }>>()
 
 /** Rasterized lock watermarks: their width follows the image size, so there are a few hundred at most */
 const locks = new BufferCache(8 * 1024 * 1024)
@@ -313,8 +317,22 @@ export default class Image implements Partial<ImageRecord> {
                     throw e
             }
         }
+        let pending = thumbnailsInProgress.get(path)
+        if (pending === undefined) {
+            pending = this.writeThumbnail(imagePath, path, size, vertical, restricted)
+                .finally(() => thumbnailsInProgress.delete(path))
+            thumbnailsInProgress.set(path, pending)
+        }
+        return await pending
+    }
+
+    /**
+     * Writes the thumbnail to a temporary file and renames it into place, which is atomic. A generation interrupted
+     * by a killed process or a full disk leaves no truncated thumbnail behind, which would be served from then on.
+     */
+    private async writeThumbnail(imagePath: string, path: string, size: string, vertical: boolean, restricted: boolean) {
         // Create directory if it does not exist
-        await mkdir(join(directory, 'thumbs'), { recursive: true }) // use recursive to success if directory exists
+        await mkdir(dirname(path), { recursive: true }) // use recursive to success if directory exists
         // Rescale image
         let thumbnail = sharp(imagePath, { failOn: 'none' })
             .rotate()
@@ -329,9 +347,16 @@ export default class Image implements Partial<ImageRecord> {
                 }])
         }
         // Save image
-        const info = await thumbnail
-            .webp({ quality: 80 })
-            .toFile(path)
-        return { type: 'webp', size: info.size, path }
+        const temporary = `${path}.${randomUUID()}.tmp`
+        try {
+            const info = await thumbnail
+                .webp({ quality: 80 })
+                .toFile(temporary)
+            await rename(temporary, path)
+            return { type: 'webp', size: info.size, path }
+        } catch (e) {
+            await rm(temporary, { force: true })
+            throw e
+        }
     }
 }

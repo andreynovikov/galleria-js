@@ -13,6 +13,7 @@ async function image(request: APIRequestContext, url: string, type = 'image/jpeg
     expect(response.status(), url).toBe(200)
     expect(response.headers()['content-type']).toBe(type)
     const body = await response.body()
+    expect(body.length, url).toBeGreaterThan(0)
     return { body, ...await sharp(body).metadata() }
 }
 

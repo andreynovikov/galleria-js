@@ -41,6 +41,17 @@ test.describe('landing page', () => {
         })
     })
 
+    test('is in Russian and shows text before the font loads', async ({ page }) => {
+        await page.goto('/')
+        await expect(page.locator('html')).toHaveAttribute('lang', 'ru')
+        // Not the fallback face next/font adds, which is a local font
+        const displays = await page.evaluate(() => [...document.fonts]
+            .filter(font => font.family.replace(/["']/g, '') === 'Nunito')
+            .map(font => font.display))
+        expect(displays.length).toBeGreaterThan(0)
+        expect(new Set(displays)).toEqual(new Set(['swap']))
+    })
+
     test('album link opens the album', async ({ page }) => {
         await page.goto('/')
         await page.getByRole('link', { name: GEORGIA, exact: true }).click()

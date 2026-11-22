@@ -2,9 +2,10 @@ import GaInit from '@/components/gallery/ga-init'
 
 import { Nunito } from 'next/font/google'
 
+// Text is shown at once in a fallback font whose metrics next/font adjusts to Nunito, so the swap barely shifts it
 const nunito = Nunito({
     subsets: ['latin', 'cyrillic'],
-    display: 'block',
+    display: 'swap',
 })
 
 import 'modern-normalize/modern-normalize.css'
@@ -12,7 +13,7 @@ import './globals.css'
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
     return (
-        <html lang="en" className={nunito.className}>
+        <html lang="ru" className={nunito.className}>
             <body>
                 {children}
                 <footer>
