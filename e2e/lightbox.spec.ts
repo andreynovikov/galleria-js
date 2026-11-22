@@ -41,11 +41,11 @@ test.describe('lightbox', () => {
         await page.goto(`${GEORGIA}#view-0-${first}`)
         await expect(description(page).locator('.title')).toHaveText('Вид на Омало')
 
-        await page.getByRole('button', { name: 'Next' }).click()
+        await page.getByRole('button', { name: 'Следующая' }).click()
         await expect(page).toHaveURL(new RegExp(`#view-1-${second}$`))
         await expect(description(page).locator('.title')).toHaveText('Таня в горах')
 
-        await page.getByRole('button', { name: 'Previous' }).click()
+        await page.getByRole('button', { name: 'Предыдущая' }).click()
         await expect(page).toHaveURL(new RegExp(`#view-0-${first}$`))
     })
 
@@ -62,7 +62,7 @@ test.describe('lightbox', () => {
         await thumbnail(page, id).click()
         await expect(lightbox(page)).toBeVisible()
 
-        await page.getByRole('button', { name: 'Close' }).click()
+        await page.getByRole('button', { name: 'Закрыть' }).click()
         await expect(lightbox(page)).toBeHidden()
         await expect(page).toHaveURL(GEORGIA)
     })

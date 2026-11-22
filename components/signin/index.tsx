@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { createAuthClient } from 'better-auth/client'
 
@@ -17,6 +18,7 @@ export default function SignIn({ providers, callbackUrl, error, basePath }: Sign
     const authClient = useMemo(() => createAuthClient({ basePath: `${basePath}/api/auth` }), [basePath])
     const [pending, setPending] = useState<string>()
     const [failure, setFailure] = useState(error)
+    const t = useTranslations('SignIn')
 
     const signIn = async (provider: string) => {
         setPending(provider)
@@ -26,13 +28,13 @@ export default function SignIn({ providers, callbackUrl, error, basePath }: Sign
         const { error } = await authClient.signIn.social({ provider, callbackURL: callbackUrl, errorCallbackURL })
         if (error) {
             setPending(undefined)
-            setFailure(error.message ?? 'Не удалось войти, попробуйте ещё раз.')
+            setFailure(error.message ?? t('errors.failed'))
         }
     }
 
     return (
         <div className={styles.container}>
-            <h2>Вход</h2>
+            <h2>{t('heading')}</h2>
             {failure && <p className={styles.error} role="alert">{failure}</p>}
             <div className={styles.providers}>
                 {providers.map(provider => (
@@ -41,7 +43,7 @@ export default function SignIn({ providers, callbackUrl, error, basePath }: Sign
                         className="button"
                         disabled={pending !== undefined}
                         onClick={() => signIn(provider.id)}>
-                        Войти через {provider.name}
+                        {t('signInWith', { provider: provider.name })}
                     </button>
                 ))}
             </div>

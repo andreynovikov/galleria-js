@@ -1,4 +1,6 @@
 import { headers } from 'next/headers'
+import { NextIntlClientProvider } from 'next-intl'
+import { getLocale } from 'next-intl/server'
 
 import GaInit from '@/components/gallery/ga-init'
 
@@ -18,10 +20,13 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
     // ahead would have none, and its scripts would be blocked
     const nonce = (await headers()).get('x-nonce') ?? undefined
 
+    // The provider passes the language, messages and time zone of i18n/request.ts on to client components
     return (
-        <html lang="ru" className={nunito.className}>
+        <html lang={await getLocale()} className={nunito.className}>
             <body>
-                {children}
+                <NextIntlClientProvider>
+                    {children}
+                </NextIntlClientProvider>
                 <footer>
                     Powered by <a href="https://github.com/andreynovikov/galleria-js" target="_blank">galleria-js</a>
                 </footer>

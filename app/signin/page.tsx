@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 
 import { providers } from '@/auth'
 import SignIn from '@/components/signin'
@@ -6,18 +7,20 @@ import { param } from '@/lib/utils'
 
 const basePath = process.env.BASE_PATH ?? ''
 
-export const metadata: Metadata = {
-    title: 'Вход',
-    robots: { index: false }
+export async function generateMetadata(): Promise<Metadata> {
+    return {
+        title: (await getTranslations('Titles'))('signIn'),
+        robots: { index: false }
+    }
 }
 
-/** Error codes which Better Auth appends to `errorURL` */
-const errors: Record<string, string> = {
-    access_denied: 'Вход отменён.',
-    email_not_found: 'Не удалось получить адрес электронной почты от провайдера.',
-    state_mismatch: 'Сессия входа устарела, попробуйте ещё раз.',
-    state_not_found: 'Сессия входа устарела, попробуйте ещё раз.'
-}
+/** Messages of the error codes which Better Auth appends to `errorURL`; other codes get `failed` */
+const errors = {
+    access_denied: 'access_denied',
+    email_not_found: 'email_not_found',
+    state_mismatch: 'state_expired',
+    state_not_found: 'state_expired'
+} as const
 
 /** Only local paths are accepted, so the page can not be used as an open redirect */
 function localPath(url: string | undefined) {
@@ -30,12 +33,15 @@ export default async function SignInPage(props: PageProps<'/signin'>) {
     const searchParams = await props.searchParams
     const callbackUrl = localPath(param(searchParams, 'callbackUrl'))
     const error = param(searchParams, 'error')
+    const t = await getTranslations('SignIn')
 
     return (
         <SignIn
-            providers={providers.map(({ id, name }) => ({ id, name }))}
+            // Translations may name a provider differently, such as Яндекс for Yandex
+            providers={providers.map(({ id, name }) => ({ id, name: t('provider', { id, name }) }))}
             callbackUrl={callbackUrl}
-            error={error === undefined ? undefined : errors[error] ?? 'Не удалось войти, попробуйте ещё раз.'}
+            // The code comes from the query string, so it is looked up only among the object's own keys
+            error={error === undefined ? undefined : t(`errors.${Object.hasOwn(errors, error) ? errors[error as keyof typeof errors] : 'failed'}`)}
             basePath={basePath}
         />
     )

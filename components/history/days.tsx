@@ -1,5 +1,6 @@
 import { Fragment } from 'react'
 import Link from 'next/link'
+import { useFormatter } from 'next-intl'
 
 import moment, { type Moment } from 'moment'
 
@@ -44,6 +45,7 @@ interface Day {
 
 /** Visitors of `/history` grouped by day, newest first */
 export default function HistoryDays({ users, query }: { users: LogUser[], query: HistoryQuery }) {
+    const format = useFormatter()
     const days = users.reduce<Day[]>((days, user) => {
         const last = days.at(-1)
         const day = moment(user.day)
@@ -62,7 +64,7 @@ export default function HistoryDays({ users, query }: { users: LogUser[], query:
     return days.map(day => (
         <div className="users" key={day.day.toISOString()}>
             <div className="date">
-                {day.day.format('LL')}
+                {format.dateTime(day.day.toDate(), { dateStyle: 'long' })}
             </div>
             <div>
                 {day.users.map(user => (

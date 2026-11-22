@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef, type SyntheticEvent } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useMessages, useTranslations } from 'next-intl'
 import { sendGAEvent } from '@next/third-parties/google'
 
 import { MasonryPhotoAlbum, type Photo } from 'react-photo-album'
@@ -71,6 +72,8 @@ export default function Album(props: AlbumProps) {
     const { photos, signedIn, downloadable, basePath } = props
 
     const [index, setIndex] = useState(-1)
+    const t = useTranslations('Album')
+    const messages = useMessages()
 
     const urlRef = useRef<string>(undefined)
     const pathname = usePathname()
@@ -221,6 +224,8 @@ export default function Album(props: AlbumProps) {
                 preload: 0
             }}
             plugins={[Download, Fullscreen, Zoom]}
+            // Keyed by the lightbox's own English texts, and not formatted: it fills in `{index} of {total}` itself
+            labels={messages.Lightbox}
             render={{
                 buttonPrev: photos.length <= 1 ? () => null : undefined,
                 buttonNext: photos.length <= 1 ? () => null : undefined,
@@ -237,7 +242,7 @@ export default function Album(props: AlbumProps) {
         />
         {downloadable && (
             <div className="download">
-                <button className="button" onClick={handleDownload}>Скачать все фотографии</button>
+                <button className="button" onClick={handleDownload}>{t('downloadAll')}</button>
             </div>
         )}
     </>

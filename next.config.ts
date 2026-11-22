@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import createNextIntlPlugin from 'next-intl/plugin'
 
 const nextConfig: NextConfig = {
     basePath: process.env.BASE_PATH,
@@ -31,4 +32,7 @@ const nextConfig: NextConfig = {
     }
 }
 
-export default nextConfig
+// Aliases next-intl/config to i18n/request.ts, which picks the interface language of each request
+const withNextIntl = createNextIntlPlugin()
+
+export default withNextIntl(nextConfig)

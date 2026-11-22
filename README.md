@@ -31,6 +31,10 @@ It works well on phones and computers alike, and handles albums with hundreds of
 * Censorship levels: photos you mark are hidden completely, as if they didn't exist, from everyone except the visitors you allow to see them
 * A view history for administrators: who looked at which photos, from where and with which device, by day
 
+**Languages**
+* The interface is in English and Russian, in whichever one the visitor's browser prefers, and in English for everyone else
+* Adding another language takes a single file (see [Interface languages](#interface-languages))
+
 **Running it**
 * Folder sync: new, edited, moved and removed photos are picked up automatically, and half-copied files are never imported
 * Optional Google Analytics
@@ -320,6 +324,12 @@ npm run typecheck
 ```
 
 [CLAUDE.md](CLAUDE.md) describes the architecture: routing, sync, the database layer, access control, sign-in and logging.
+
+### Interface languages
+
+The interface text is in `i18n/messages/`, one JSON file per language in [ICU message format](https://next-intl.dev/docs/usage/messages). Each request gets the language that the browser's `Accept-Language` header ranks highest among those with a file, and English when it accepts none of them. English is also used for any message a translation lacks.
+
+To add a language, copy `en.json` to a file named by the language's two- or three-letter code (`de.json` for German, not `de-DE.json`), translate the values and rebuild. Keep the keys, and the `{…}` placeholders in the values, as they are. The tests (`e2e/locale.spec.ts`) check that every file has the same keys as `en.json`, so the messages of the project's own languages never fall back to English unnoticed. Photo captions, keywords and album names come from the photos and aren't translated.
 
 ### URL parameters
 

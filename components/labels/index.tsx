@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 
 import { TagCloud, type ColorOptions, type Tag } from 'react-tagcloud'
 
@@ -47,6 +48,7 @@ export default function LabelCloud({ labels }: LabelCloudProps) {
     }, [includedLabels, excludedLabels])
 
     const router = useRouter()
+    const t = useTranslations('Selector')
 
     const tags: LabelTag[] = labels.map(label => ({ ...label, value: label.name, key: String(label.id) }))
 
@@ -109,7 +111,7 @@ export default function LabelCloud({ labels }: LabelCloudProps) {
                 onClick={(tag: Tag) => handleOnPress(tag as LabelTag)} />
             {includedLabels.length > 0 && (
                 <div>
-                    <button className="button" onClick={handleButtonClick}>Показать</button>
+                    <button className="button" onClick={handleButtonClick}>{t('show')}</button>
                 </div>
             )}
         </div>

@@ -24,11 +24,11 @@ function accountUser(provider: string, id: unknown, email: unknown) {
     }
 }
 
-/** Sign-in providers, in the order they are shown on the sign-in page */
+/** Sign-in providers, in the order they are shown on the sign-in page. `SignIn.provider` messages may rename them. */
 export const providers = [
     { id: 'github', name: 'GitHub' },
     { id: 'google', name: 'Google' },
-    { id: 'yandex', name: 'Яндекс' },
+    { id: 'yandex', name: 'Yandex' },
     { id: 'mailru', name: 'Mail.ru' },
     { id: 'vk', name: 'VK ID' }
 ] as const

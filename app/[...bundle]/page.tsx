@@ -22,6 +22,6 @@ export async function generateMetadata(props: PageProps<'/[...bundle]'>): Promis
     const searchParams = await props.searchParams
 
     return {
-        title: await getTitle(['Фотографии', 'из', (decodePath(params.bundle) ?? '/').slice(1)], searchParams)
+        title: await getTitle(searchParams, decodePath(params.bundle) ?? '/')
     }
 }

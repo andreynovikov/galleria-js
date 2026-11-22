@@ -46,7 +46,7 @@ test.describe('logging', () => {
                 expect.objectContaining({ image: id, visitor_id: 'e2e-user' })
             ])
 
-            await page.getByRole('button', { name: 'Zoom in' }).click()
+            await page.getByRole('button', { name: 'Увеличить' }).click()
             // Zoom is logged after it settles for a second
             await expect.poll(async () => (await logRows(ip)).filter(row => row.status === 2), { timeout: 5000 }).toEqual([
                 expect.objectContaining({ image: id, visitor_id: 'e2e-user', meta: expect.objectContaining({ zoom: expect.any(Number) }) })

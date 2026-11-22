@@ -52,6 +52,14 @@ export function decodePath(segments: string[]) {
     return '/' + decoded.join('/')
 }
 
+/** Date of a `-filt.from`/`-filt.till` value, `undefined` if it is missing or not a date */
+export function parseDate(value?: string) {
+    if (value === undefined)
+        return undefined
+    const date = new Date(value)
+    return isNaN(date.getTime()) ? undefined : date
+}
+
 export function bool(value: unknown) {
     return value === true || Number(value) > 0 || ['true', '1', 'yes'].includes(String(value).toLowerCase().trim())
 }

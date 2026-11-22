@@ -93,7 +93,7 @@ test.describe('gallery', () => {
 
     test('shows placeholder when nothing is found', async ({ page }) => {
         await page.goto('/?-filt.labels=Несуществующий')
-        await expect(page.getByRole('img', { name: 'Nothing found' })).toBeVisible()
+        await expect(page.getByRole('img', { name: 'Ничего не найдено' })).toBeVisible()
         await expect(thumbnails(page)).toHaveCount(0)
     })
 

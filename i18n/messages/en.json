@@ -1,0 +1,53 @@
+{
+    "Titles": {
+        "albumsAndLabels": "Albums and tags",
+        "photos": "Photos",
+        "photosFrom": "Photos from {album}",
+        "withLabels": "{count, plural, =1 {with tag} other {with tags}} {labels}",
+        "after": "after {date}",
+        "before": "before {date}",
+        "signIn": "Sign in"
+    },
+    "Gallery": {
+        "allAlbums": "All albums",
+        "syncing": "The album is being updated, the remaining photos will appear later.",
+        "nothingFound": "Nothing found"
+    },
+    "Album": {
+        "downloadAll": "Download all photos"
+    },
+    "Lightbox": {
+        "Previous": "Previous",
+        "Next": "Next",
+        "Close": "Close",
+        "Slide": "Photo",
+        "Carousel": "Carousel",
+        "Lightbox": "Photo viewer",
+        "Photo gallery": "Photo gallery",
+        "{index} of {total}": "{index} of {total}",
+        "Download": "Download",
+        "Enter Fullscreen": "Enter full screen",
+        "Exit Fullscreen": "Exit full screen",
+        "Zoom in": "Zoom in",
+        "Zoom out": "Zoom out"
+    },
+    "Selector": {
+        "albums": "Albums",
+        "show": "Show"
+    },
+    "History": {
+        "loading": "Loading…",
+        "loadMore": "Load more"
+    },
+    "SignIn": {
+        "heading": "Sign in",
+        "signInWith": "Sign in with {provider}",
+        "provider": "{name}",
+        "errors": {
+            "access_denied": "Sign-in was cancelled.",
+            "email_not_found": "The provider did not give an email address.",
+            "state_expired": "The sign-in session has expired, please try again.",
+            "failed": "Could not sign in, please try again."
+        }
+    }
+}

@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { after } from 'next/server'
+import { getTranslations } from 'next-intl/server'
 
 import Album, { type AlbumPhoto } from '@/components/album'
 import NothingFound from './nothing-found'
@@ -8,7 +9,7 @@ import NothingFound from './nothing-found'
 import { getRestrictedLabels, listImages, parseImageOrder, resolveLabels } from '@/lib/db'
 import { downloadMaxImages, thumbnailWidths } from '@/lib/image'
 import { syncBundleOnView } from '@/lib/images'
-import { bool, param, queryString, urlPath, type SearchParams } from '@/lib/utils'
+import { bool, param, parseDate, queryString, urlPath, type SearchParams } from '@/lib/utils'
 import { censorshipLevel, getSession, isAdmin } from '@/auth'
 
 import GaEvent from './ga-event'
@@ -29,13 +30,6 @@ async function settlesWithin(promise: Promise<unknown>, ms: number) {
     }
 }
 
-function parseDate(value?: string) {
-    if (value === undefined)
-        return undefined
-    const date = new Date(value)
-    return isNaN(date.getTime()) ? undefined : date
-}
-
 interface GalleryProps {
     bundle?: string
     searchParams: SearchParams
@@ -43,6 +37,7 @@ interface GalleryProps {
 
 export default async function Gallery({ bundle, searchParams }: GalleryProps) {
     const session = await getSession()
+    const t = await getTranslations('Gallery')
 
     const labelsParam = param(searchParams, '-filt.labels')
     const labels = labelsParam !== undefined ? await resolveLabels(labelsParam.split(',')) : undefined
@@ -89,7 +84,7 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
 
     const images = await listImages({ bundle, labels, notlabels, from, till, censored }, order)
 
-    const syncNotice = syncing && <p className={styles.syncing}>Альбом обновляется, остальные фотографии появятся позже.</p>
+    const syncNotice = syncing && <p className={styles.syncing}>{t('syncing')}</p>
 
     if (images.length === 0)
         return syncNotice || <NothingFound />
@@ -125,7 +120,7 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
     return (
         <>
             <div className={styles.topMenu}>
-                <Link href="/">Все альбомы</Link>
+                <Link href="/">{t('allAlbums')}</Link>
             </div>
             {syncNotice}
             <Album photos={photos} signedIn={!!session} downloadable={!!session && photos.length <= downloadMaxImages} basePath={basePath} />

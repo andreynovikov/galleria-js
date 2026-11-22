@@ -1,0 +1,53 @@
+{
+    "Titles": {
+        "albumsAndLabels": "Альбомы и теги",
+        "photos": "Фотографии",
+        "photosFrom": "Фотографии из {album}",
+        "withLabels": "{count, plural, =1 {с тегом} other {с тегами}} {labels}",
+        "after": "после {date}",
+        "before": "до {date}",
+        "signIn": "Вход"
+    },
+    "Gallery": {
+        "allAlbums": "Все альбомы",
+        "syncing": "Альбом обновляется, остальные фотографии появятся позже.",
+        "nothingFound": "Ничего не найдено"
+    },
+    "Album": {
+        "downloadAll": "Скачать все фотографии"
+    },
+    "Lightbox": {
+        "Previous": "Предыдущая",
+        "Next": "Следующая",
+        "Close": "Закрыть",
+        "Slide": "Фотография",
+        "Carousel": "Карусель",
+        "Lightbox": "Просмотр фотографий",
+        "Photo gallery": "Фотографии",
+        "{index} of {total}": "{index} из {total}",
+        "Download": "Скачать",
+        "Enter Fullscreen": "Во весь экран",
+        "Exit Fullscreen": "Выйти из полноэкранного режима",
+        "Zoom in": "Увеличить",
+        "Zoom out": "Уменьшить"
+    },
+    "Selector": {
+        "albums": "Альбомы",
+        "show": "Показать"
+    },
+    "History": {
+        "loading": "Загрузка…",
+        "loadMore": "Загрузить ещё"
+    },
+    "SignIn": {
+        "heading": "Вход",
+        "signInWith": "Войти через {provider}",
+        "provider": "{id, select, yandex {Яндекс} other {{name}}}",
+        "errors": {
+            "access_denied": "Вход отменён.",
+            "email_not_found": "Не удалось получить адрес электронной почты от провайдера.",
+            "state_expired": "Сессия входа устарела, попробуйте ещё раз.",
+            "failed": "Не удалось войти, попробуйте ещё раз."
+        }
+    }
+}

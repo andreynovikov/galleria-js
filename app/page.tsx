@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 
 import Gallery from '@/components/gallery'
 import Selector from '@/components/selector'
@@ -24,10 +25,10 @@ export async function generateMetadata(props: PageProps<'/'>): Promise<Metadata>
 
     if (Object.keys(searchParams).length > 0)
         return {
-            title: await getTitle(['Фотографии'], searchParams)
+            title: await getTitle(searchParams)
         }
     else
         return {
-            title: 'Альбомы и теги'
+            title: (await getTranslations('Titles'))('albumsAndLabels')
         }
 }

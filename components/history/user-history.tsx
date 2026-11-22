@@ -1,6 +1,7 @@
 import { isIP } from 'net'
 import { Fragment } from 'react'
 import { notFound, redirect } from 'next/navigation'
+import { getFormatter } from 'next-intl/server'
 import moment, { type Moment } from 'moment'
 
 import { historyFilters, historyQuery } from '@/components/history/days'
@@ -33,6 +34,7 @@ export default async function UserHistory(props: PageProps<'/history/[ip]'> | Pa
     const session = await getSession()
     if (!isAdmin(session))
         redirect('/signin')
+    const format = await getFormatter()
 
     // Malformed addresses and dates are not found rather than failing in SQL; malformed filters are ignored
     const ip = decodeURIComponent(params.ip)
@@ -89,7 +91,7 @@ export default async function UserHistory(props: PageProps<'/history/[ip]'> | Pa
         days.map(day => (
             <div key={day.day.toISOString()}>
                 <h1>
-                    {day.day.format('LL')}
+                    {format.dateTime(day.day.toDate(), { dateStyle: 'long' })}
                 </h1>
 
                 {Array.from(day.visitors.entries()).map(([key, visitor]) => (

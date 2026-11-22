@@ -72,7 +72,7 @@ test.describe('album sync', () => {
 
             await rm(join(folder, 'a.jpg'))
             await page.goto(bundle)
-            await expect(page.getByRole('img', { name: 'Nothing found' })).toBeVisible()
+            await expect(page.getByRole('img', { name: 'Ничего не найдено' })).toBeVisible()
             expect(await albumCount()).toBeNull()
         } finally {
             await rm(folder, { recursive: true, force: true })
@@ -168,7 +168,7 @@ test.describe('album sync', () => {
 
             await rm(file)
             await page.reload()
-            await expect(page.getByRole('img', { name: 'Nothing found' })).toBeVisible()
+            await expect(page.getByRole('img', { name: 'Ничего не найдено' })).toBeVisible()
         } finally {
             await rm(folder, { recursive: true, force: true })
         }
@@ -184,13 +184,13 @@ test.describe('album sync', () => {
             // Just written, as during a copy
             await copyFile(join(fixturesFolder, 'photos', ARMENIA, 'IMG_0102.jpg'), file)
             await page.goto(bundle)
-            await expect(page.getByRole('img', { name: 'Nothing found' })).toBeVisible()
+            await expect(page.getByRole('img', { name: 'Ничего не найдено' })).toBeVisible()
 
             // The copy is done, but the folder is the same as at that sync: views within a minute don't list it
             // again. The periodic scan does.
             await settled(file)
             await page.goto(bundle)
-            await expect(page.getByRole('img', { name: 'Nothing found' })).toBeVisible()
+            await expect(page.getByRole('img', { name: 'Ничего не найдено' })).toBeVisible()
             await scanPhotos(bundle)
             await page.goto(bundle)
             await expect(thumbnails(page)).toHaveCount(1)

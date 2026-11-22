@@ -1,6 +1,7 @@
 'use client'
 
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { loadHistory } from '@/app/history/actions'
 
@@ -19,6 +20,7 @@ export default function MoreHistory({ next, query }: MoreHistoryProps) {
     const [loading, setLoading] = useState(false)
     const [failed, setFailed] = useState(false)
     const sentinel = useRef<HTMLDivElement>(null)
+    const t = useTranslations('History')
 
     // A new observer reports at once whether the end is still in view, so short pages are followed by the next one
     useEffect(() => {
@@ -51,8 +53,8 @@ export default function MoreHistory({ next, query }: MoreHistoryProps) {
             {pages.map((page, index) => <Fragment key={index}>{page}</Fragment>)}
             {cursor !== null && (
                 <div ref={sentinel} className="more">
-                    {loading && 'Загрузка…'}
-                    {failed && <button className="button" onClick={() => setFailed(false)}>Загрузить ещё</button>}
+                    {loading && t('loading')}
+                    {failed && <button className="button" onClick={() => setFailed(false)}>{t('loadMore')}</button>}
                 </div>
             )}
         </>
