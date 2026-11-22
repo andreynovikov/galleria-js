@@ -5,13 +5,14 @@ CREATE TABLE image (
     width integer DEFAULT 0 NOT NULL,
     height integer DEFAULT 0 NOT NULL,
     orientation integer DEFAULT 0 NOT NULL,
+    -- Shooting time from EXIF, the camera's wall-clock time (EXIF rarely has the zone)
     stime timestamp without time zone,
     author integer,
     description text,
     lat6 integer,
     lon6 integer,
-    ctime timestamp without time zone,
-    mtime timestamp without time zone,
+    ctime timestamp with time zone,
+    mtime timestamp with time zone,
     starred integer DEFAULT 0 NOT NULL,
     exportable boolean DEFAULT true NOT NULL,
     censored integer DEFAULT 0 NOT NULL,
@@ -36,7 +37,8 @@ CREATE TABLE log (
     image integer NOT NULL,
     ip inet NOT NULL,
     status integer NOT NULL,
-    ctime timestamp without time zone DEFAULT now() NOT NULL,
+    -- UTC: the partitions and the days of /history are UTC months and days
+    ctime timestamp without time zone DEFAULT (now() AT TIME ZONE 'UTC') NOT NULL,
     visitor_id character varying,
     visitor_provider character varying,
     meta jsonb

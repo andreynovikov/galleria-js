@@ -4,8 +4,11 @@ import { getRequestConfig } from 'next-intl/server'
 import en from './messages/en.json'
 import { defaultLocale, preferredLanguages, withFallback, type Messages } from './locales'
 
-/** Dates are shown in the server's time zone, the one `-filt.from`/`-filt.till` are read in */
-const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+/**
+ * Dates are formatted in UTC, whatever the zone of the server: the ones shown are wall-clock times (the
+ * `-filt.from`/`-filt.till` filters, read by `parseDate()`) and the UTC days of the access log
+ */
+const timeZone = 'UTC'
 
 /**
  * Messages of a language, `undefined` if it has no file. The bundler includes every `i18n/messages/*.json` file

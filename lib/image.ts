@@ -9,6 +9,7 @@ import { decode } from 'utf8'
 import { getImageById, getImageByName, addImage, deleteImage, updateImage, getLabelIds, getImageLabels, setImageLabels } from './db'
 import type { CameraSettings, ImageRecord, ImageUpdate, Label } from './db'
 import { BufferCache } from './cache'
+import { parseDate } from './utils'
 
 export const thumbnailWidths: Record<string, number> = JSON.parse(process.env.THUMBNAIL_WIDTH as string)
 /** Most photos one album download may contain: each one is resized while the archive is built */
@@ -83,13 +84,13 @@ export function fileVersion(stats: Stats): FileVersion {
     return { size: stats.size, mtime: new Date(Math.floor(stats.mtimeMs)) }
 }
 
-/** Tags read by exifr, which gives dates as `Date` */
+/** Tags read by exifr. Dates are left as written (`reviveValues: false`), exifr would read them in the local zone. */
 interface Tags {
     [tag: string]: unknown
-    CreateDate?: Date
-    DateTimeDigitized?: Date
-    DateTimeOriginal?: Date
-    ModifyDate?: Date
+    CreateDate?: string
+    DateTimeDigitized?: string
+    DateTimeOriginal?: string
+    ModifyDate?: string
 }
 
 /** Camera settings among the tags read by exifr; ISO can come as a list of values */
@@ -111,7 +112,8 @@ async function readMetadata(path: string): Promise<{ data: ImageUpdate, labels?:
         iptc: true,
         exif: true,
         gps: true,
-        translateValues: false
+        translateValues: false,
+        reviveValues: false
     })
     const { width, height, orientation } = await sharp(path).metadata()
     const data: ImageUpdate = { width, height, orientation: orientation ?? 0 }
@@ -136,9 +138,11 @@ async function readMetadata(path: string): Promise<{ data: ImageUpdate, labels?:
         data.height = width
     }
 
+    // The time on the camera's clock, kept as wall-clock time: EXIF rarely records the zone
     const stime = info['CreateDate'] || info['DateTimeDigitized'] || info['DateTimeOriginal'] || info['ModifyDate']
-    if (stime !== undefined)
-        data.stime = stime
+    const shot = typeof stime === 'string' ? parseDate(stime) : undefined
+    if (shot !== undefined)
+        data.stime = shot
 
     data.exif = cameraSettings(info)
 

@@ -7,13 +7,19 @@ declare global {
     var __listings: Map<string, { expires: number, value: Promise<unknown> }> | undefined
 }
 
+/**
+ * The connection comes from the libpq env vars. Its session is in UTC whatever the server's `TimeZone` is, so
+ * `now()` and casts between `timestamp` and `timestamptz` give UTC wall-clock time, as `timestamp` columns hold it.
+ */
+const connect = () => postgres({ connection: { TimeZone: 'UTC' } })
+
 let sql: Sql
 
 if (process.env.NODE_ENV === 'production') {
-    sql = postgres()
+    sql = connect()
 } else {
     if (!global.__postgresSqlClient) {
-        global.__postgresSqlClient = postgres()
+        global.__postgresSqlClient = connect()
     }
     sql = global.__postgresSqlClient
 }

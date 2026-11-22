@@ -26,7 +26,7 @@ export function historyQuery(searchParams: SearchParams): HistoryQuery {
 /** Filters for the log query; malformed values are ignored instead of reaching SQL */
 export function historyFilters(query: HistoryQuery): LogFilters {
     const filters: LogFilters = {}
-    const from = query['-filt.from'] === undefined ? undefined : moment(query['-filt.from'], moment.ISO_8601, true)
+    const from = query['-filt.from'] === undefined ? undefined : moment.utc(query['-filt.from'], moment.ISO_8601, true)
     if (from?.isValid())
         filters.from = from.toDate()
     const label = Number(query['-filt.label'])
@@ -48,7 +48,8 @@ export default function HistoryDays({ users, query }: { users: LogUser[], query:
     const format = useFormatter()
     const days = users.reduce<Day[]>((days, user) => {
         const last = days.at(-1)
-        const day = moment(user.day)
+        // Days of the log are UTC days (`ctime::date`), which postgres gives as UTC midnight
+        const day = moment.utc(user.day)
         user.meta = user.meta.filter(meta => meta.browser || meta.ua || meta.device)
         if (!last?.day.isSame(day, 'day')) {
             days.push({

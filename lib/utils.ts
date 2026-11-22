@@ -52,12 +52,25 @@ export function decodePath(segments: string[]) {
     return '/' + decoded.join('/')
 }
 
-/** Date of a `-filt.from`/`-filt.till` value, `undefined` if it is missing or not a date */
+/**
+ * A date and time as written, in the form `2015-06-26`, `2015-06-26T10:00`, `2015-06-26 10:00:00.5` or EXIF's
+ * `2015:06:26 10:00:00`, as the `Date` whose UTC fields are that time, `undefined` if it is not one. A zone after the
+ * time (`Z`, `+03:00`, `UTC`) is ignored, as PostgreSQL ignores it for `timestamp` columns: those hold wall-clock
+ * times, such as the shooting time from EXIF and the `-filt.from`/`-filt.till` filters on it, and pages format
+ * dates in UTC (`i18n/request.ts`). So nothing depends on the time zone of the server.
+ */
 export function parseDate(value?: string) {
-    if (value === undefined)
+    const match = value?.trim().match(
+        /^(\d{4})[-:](\d\d)[-:](\d\d)(?:[T ](\d\d):(\d\d)(?::(\d\d)(?:\.(\d+))?)?)?(?:\s*(?:Z|UTC|[+-]\d\d(?::?\d\d)?))?$/i)
+    if (!match)
         return undefined
-    const date = new Date(value)
-    return isNaN(date.getTime()) ? undefined : date
+    const [year, month, day, hour, minute, second] = match.slice(1, 7).map(field => Number(field ?? 0))
+    const ms = Number((match[7] ?? '').slice(0, 3).padEnd(3, '0'))
+    const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second, ms))
+    date.setUTCFullYear(year) // Date.UTC() takes years below 100 as 19xx
+    // Date.UTC() carries fields over (June 31 is July 1, EXIF's unset 0000:00:00 is in -1), they aren't dates
+    const valid = date.getUTCMonth() === month - 1 && date.getUTCDate() === day && hour < 24 && minute < 60 && second < 60
+    return valid ? date : undefined
 }
 
 export function bool(value: unknown) {

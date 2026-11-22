@@ -52,7 +52,8 @@ export default async function UserHistory(props: PageProps<'/history/[ip]'> | Pa
 
     const days = images.reduce<Day[]>((days, logImage) => {
         const lastDay = days.at(-1)
-        const day = moment(logImage.day ?? params.day)
+        // UTC days, as in HistoryDays
+        const day = moment.utc(logImage.day ?? params.day)
         const image: HistoryImage = {
             ...logImage,
             meta: logImage.meta.reduce<{ zoom?: number }>((meta, item) => {

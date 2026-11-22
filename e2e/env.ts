@@ -56,7 +56,9 @@ export const users = {
 }
 
 export const env: Record<string, string> = {
-    TZ: 'UTC', // the same as in Docker, timestamps are stored as UTC wall-clock time
+    // Not UTC as in Docker, so that code depending on the server's zone fails (e2e/dates.spec.ts). Behind UTC: its
+    // midnight is the day before here.
+    TZ: 'America/New_York',
     PGDATABASE: process.env.E2E_PGDATABASE ?? 'galleria_e2e',
     PHOTOS_FOLDER: photosFolder,
     // No photo has `Secret` until e2e/sync.spec.ts adds one
