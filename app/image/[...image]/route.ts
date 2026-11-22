@@ -8,7 +8,7 @@ import { censorshipLevel, getSession, isAdmin } from '@/auth'
 
 import Image, { ImageNotFoundError } from '@/lib/image'
 import { getRestrictedLabels, writeLog } from '@/lib/db'
-import { bool, clientIp, uaMeta, ACTION_ORIGINAL, ACTION_VIEW, ACTION_EXPORT, ACTION_THUMBNAIL, ACTION_LOCKED } from '@/lib/utils'
+import { bool, clientIp, decodePath, uaMeta, ACTION_ORIGINAL, ACTION_VIEW, ACTION_EXPORT, ACTION_THUMBNAIL, ACTION_LOCKED } from '@/lib/utils'
 
 const screenMaxWidth = Number(process.env.SCREEN_MAX_WIDTH)
 const exportMaxWidth = Number(process.env.EXPORT_MAX_WIDTH)
@@ -68,12 +68,18 @@ export async function GET(request: NextRequest) {
     const vertical = request.nextUrl.searchParams.get('constraint') === 'vertical'
     // Regenerating thumbnails is expensive, so only admins may force it
     const force = isAdmin(session) && bool(request.nextUrl.searchParams.get('force'))
-    const image = Image.fromPath(request.nextUrl.pathname)
+    // The URL path is percent-encoded
+    const photoPath = decodePath(request.nextUrl.pathname.split('/').filter(segment => segment !== ''))
+    if (photoPath === null)
+        return new Response('Not found', {
+            status: 404
+        })
+    const image = Image.fromPath(photoPath)
     let action: number
     let restricted = false
 
     // Check the file first: a missing file has no database record to look up labels for
-    const path = join(process.env.PHOTOS_FOLDER as string, request.nextUrl.pathname)
+    const path = join(process.env.PHOTOS_FOLDER as string, photoPath)
     let stats: Stats
     try {
         stats = await stat(path)

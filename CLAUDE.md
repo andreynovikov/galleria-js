@@ -67,6 +67,7 @@ Running the app needs a PostgreSQL database with `sql/schema.sql` applied. The c
 ## Conventions
 
 - All sources are TypeScript (`allowJs: false`). Read query strings with `param()` from [lib/utils.ts](lib/utils.ts), because any `searchParams` value can be an array.
+- Album and photo paths are plain (unencoded) in the database and on disk, but URLs carry them percent-encoded, and Next passes catch-all params and `nextUrl.pathname` still encoded. Build URLs with `urlPath()` and read paths with `decodePath()` (both in [lib/utils.ts](lib/utils.ts)); `decodePath()` also rejects segments that would leave their folder once decoded (`%2F`, `..`). The proxy answers malformed encodings with 400, because Next fails with 500 on them.
 - Client components may import types from `@/lib/db` or `@/lib/image`, but only with `import type`.
 - In client code, open route handlers (such as `/download`) with `window.location.assign()`, not `router.push()`. The router fetches route handlers once more before navigating, which builds a download archive twice. It also records the URL as current while the page is still open, so server actions such as thumbnail `log()` get posted to the route handler. `BASE_PATH` isn't available in client code, so prefix such URLs with a `basePath` prop passed from the server component.
 - Import from the project root with the `@/` alias (for example `@/lib/db`). The exception is [auth.ts](auth.ts), which uses relative imports because Playwright global setup loads it and doesn't resolve the alias.

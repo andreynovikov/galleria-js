@@ -27,6 +27,31 @@ export function queryString(searchParams: SearchParams) {
     )).join('&')
 }
 
+/** URL path of an album or photo path, such as `/travel/Грузия/IMG 1.jpg`, with each segment percent-encoded */
+export function urlPath(path: string) {
+    return path.split('/').map(encodeURIComponent).join('/')
+}
+
+/**
+ * Album or photo path from percent-encoded URL path segments. Returns `null` when a segment is malformed or would
+ * leave its folder once decoded (an encoded `/`, `.` or `..`), so the path stays inside the photos folder.
+ */
+export function decodePath(segments: string[]) {
+    const decoded: string[] = []
+    for (const segment of segments) {
+        let value: string
+        try {
+            value = decodeURIComponent(segment)
+        } catch {
+            return null
+        }
+        if (value === '' || value === '.' || value === '..' || value.includes('/') || value.includes('\0'))
+            return null
+        decoded.push(value)
+    }
+    return '/' + decoded.join('/')
+}
+
 export function bool(value: unknown) {
     return value === true || Number(value) > 0 || ['true', '1', 'yes'].includes(String(value).toLowerCase().trim())
 }

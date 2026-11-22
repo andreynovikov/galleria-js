@@ -1,6 +1,8 @@
 import { listBundles } from '@/lib/db'
 import Link from 'next/link'
 
+import { urlPath } from '@/lib/utils'
+
 import styles from './list.module.css'
 
 /*
@@ -15,7 +17,7 @@ export default async function BundleList() {
         <ul className={styles.bundles}>
             {bundles.map(bundle => (
                 <li key={bundle.path}>
-                    <Link href={bundle.path}>{bundle.path}</Link>
+                    <Link href={urlPath(bundle.path)}>{bundle.path}</Link>
                     &nbsp;
                     ({bundle.count})
                 </li>

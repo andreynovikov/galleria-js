@@ -8,7 +8,7 @@ import NothingFound from './nothing-found'
 import { getRestrictedLabels, listImages, resolveLabels } from '@/lib/db'
 import { downloadMaxImages, thumbnailWidths } from '@/lib/image'
 import { syncBundle } from '@/lib/images'
-import { bool, param, queryString, type SearchParams } from '@/lib/utils'
+import { bool, param, queryString, urlPath, type SearchParams } from '@/lib/utils'
 import { censorshipLevel, getSession, isAdmin } from '@/auth'
 
 import GaEvent from './ga-event'
@@ -53,7 +53,7 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
     if (!session && labels !== undefined && labels.length > 0) {
         const restrictedLabels = await getRestrictedLabels()
         if (labels.some(label => restrictedLabels.includes(label))) {
-            const callbackUrl = `${basePath}${bundle ?? '/'}?${query}`
+            const callbackUrl = `${basePath}${urlPath(bundle ?? '/')}?${query}`
             redirect(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`)
         }
     }
@@ -96,18 +96,18 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
     const photos: AlbumPhoto[] = images.map((image) => (
         {
             id: image.id,
-            src: `${basePath}${image.bundle}/${image.name}`,
-            download: image.restricted && session?.user?.id === undefined ? false : `${basePath}${image.bundle}/${image.name}?format=original`,
+            src: `${basePath}${urlPath(`${image.bundle}/${image.name}`)}`,
+            download: image.restricted && session?.user?.id === undefined ? false : `${basePath}${urlPath(`${image.bundle}/${image.name}`)}?format=original`,
             title: image.name,
             width: image.width,
             height: image.height,
             restricted: image.restricted ?? false,
             srcSet: Object.entries(thumbnailWidths).map(([size, width]) => ({
-                src: `${basePath}${image.bundle}/${image.name}?format=thumbnail&size=${size}`,
+                src: `${basePath}${urlPath(`${image.bundle}/${image.name}`)}?format=thumbnail&size=${size}`,
                 width,
                 height: Math.round((image.height / image.width) * width)
             })).concat([{
-                src: `${basePath}${image.bundle}/${image.name}`,
+                src: `${basePath}${urlPath(`${image.bundle}/${image.name}`)}`,
                 width: Number(process.env.SCREEN_MAX_WIDTH),
                 height: Math.round((image.height / image.width) * Number(process.env.SCREEN_MAX_WIDTH))
             }])

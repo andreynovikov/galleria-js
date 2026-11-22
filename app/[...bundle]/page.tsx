@@ -4,14 +4,17 @@ import { notFound } from 'next/navigation'
 import Gallery from '@/components/gallery'
 
 import { getTitle } from '@/lib/meta'
+import { decodePath } from '@/lib/utils'
 
 export default async function PhotosList(props: PageProps<'/[...bundle]'>) {
     const params = await props.params
     const searchParams = await props.searchParams
-    if (params.bundle.at(-1) === 'thumbs')
+    // Next gives the segments percent-encoded
+    const bundle = decodePath(params.bundle)
+    if (bundle === null || params.bundle.at(-1) === 'thumbs')
         notFound()
 
-    return <Gallery bundle={'/' + params.bundle.join('/')} searchParams={searchParams} />
+    return <Gallery bundle={bundle} searchParams={searchParams} />
 }
 
 export async function generateMetadata(props: PageProps<'/[...bundle]'>): Promise<Metadata> {
@@ -19,6 +22,6 @@ export async function generateMetadata(props: PageProps<'/[...bundle]'>): Promis
     const searchParams = await props.searchParams
 
     return {
-        title: await getTitle(['Фотографии', 'из', params.bundle.join('/')], searchParams)
+        title: await getTitle(['Фотографии', 'из', (decodePath(params.bundle) ?? '/').slice(1)], searchParams)
     }
 }

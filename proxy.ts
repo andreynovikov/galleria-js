@@ -7,6 +7,12 @@ const basePath = process.env.BASE_PATH ?? ''
 export async function proxy(request: NextRequest) {
     if (request.method === 'POST') // Do not intercept next.js requests
         return
+    // Next fails with 500 on a malformed percent-encoding while matching routes
+    try {
+        decodeURIComponent(request.nextUrl.pathname)
+    } catch {
+        return new Response('Bad request', { status: 400 })
+    }
     // Filtering by restricted labels requires signing in too, that is checked by Gallery, which resolves label ids
     if (request.nextUrl.pathname.startsWith('/history')) {
         if (!await getSessionFromHeaders(request.headers)) {

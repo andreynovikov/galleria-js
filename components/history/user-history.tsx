@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import moment, { type Moment } from 'moment'
 
 import { getUserLog, type UserLogFilters, type UserLogImage } from '@/lib/db'
-import { param } from '@/lib/utils'
+import { param, urlPath } from '@/lib/utils'
 import { getSession, isAdmin } from '@/auth'
 
 const basePath = process.env.BASE_PATH ?? ''
@@ -103,12 +103,12 @@ export default async function UserHistory(props: PageProps<'/history/[ip]'> | Pa
                         </h2>
                         <div className="images">
                             {visitor.images.map(image => (
-                                <a href={`${basePath}${image.bundle}/${image.name}`} className={`status${image.status}`} key={image.id}>
+                                <a href={`${basePath}${urlPath(`${image.bundle}/${image.name}`)}`} className={`status${image.status}`} key={image.id}>
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                         loading="lazy"
                                         decoding="async"
-                                        src={`${basePath}${image.bundle}/${image.name}?format=thumbnail&size=s`}
+                                        src={`${basePath}${urlPath(`${image.bundle}/${image.name}`)}?format=thumbnail&size=s`}
                                         alt={`${image.bundle}/${image.name}`}
                                         title={image.meta.zoom?.toString()}
                                         style={{ aspectRatio: image.width / image.height }} />

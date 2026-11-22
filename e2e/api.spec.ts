@@ -318,7 +318,8 @@ test.describe('album download', () => {
 
     test('puts photos with the same name in album folders and names the archive after the albums', async ({ browser, request }, testInfo) => {
         // Unique album with a copy of a photo without labels, under a name the Armenia album has too
-        const bundle = `/copy(${testInfo.project.name}-${testInfo.repeatEachIndex})`
+        const name = `Копия(${testInfo.project.name}-${testInfo.repeatEachIndex})`
+        const bundle = `/${name}`
         const folder = join(photosFolder, bundle)
         const copy = join(folder, 'img_0102.jpg')
         await rm(folder, { recursive: true, force: true })
@@ -326,7 +327,7 @@ test.describe('album download', () => {
         const context = await browser.newContext({ storageState: asUser })
         try {
             await writeFile(copy, await readFile(join(fixturesFolder, 'photos', ARMENIA, 'IMG_0102.jpg')))
-            expect((await request.get(bundle)).status()).toBe(200)
+            expect((await request.get(encodeURI(bundle))).status()).toBe(200)
             const ids = [await imageId(ARMENIA, 'IMG_0101.jpg'), await imageId(ARMENIA, 'IMG_0102.jpg'), await imageId(bundle, 'img_0102.jpg')]
 
             // Names which differ only in case collide on Windows and macOS too
@@ -341,17 +342,17 @@ test.describe('album download', () => {
             const travel = await context.request.get(`/download?images=${[ids[0], await imageId(GEORGIA, 'IMG_0001.jpg')].join()}`)
             expect(travel.headers()['content-disposition']).toBe(`attachment; filename="travel.zip"; filename*=UTF-8''travel.zip`)
 
-            // The encoded name escapes the characters RFC 5987 doesn't allow
+            // Clients which don't read the UTF-8 name get a plain one. The encoded name escapes the characters
+            // RFC 5987 doesn't allow.
             const single = await context.request.get(`/download?images=${ids[2]}`)
             expect(unzip(await single.body()).map(entry => entry.name)).toEqual(['img_0102.jpg'])
-            const name = `copy(${testInfo.project.name}-${testInfo.repeatEachIndex})`
             expect(single.headers()['content-disposition'])
-                .toBe(`attachment; filename="${name}.zip"; filename*=UTF-8''${name.replace('(', '%28').replace(')', '%29')}.zip`)
+                .toBe(`attachment; filename="images.zip"; filename*=UTF-8''${encodeURIComponent(name).replace('(', '%28').replace(')', '%29')}.zip`)
         } finally {
             await context.close()
             // Sync removes the row of the deleted file, a missing folder is just reported as not found
             await rm(copy, { force: true })
-            await request.get(bundle)
+            await request.get(encodeURI(bundle))
             await rm(folder, { recursive: true, force: true })
         }
     })
