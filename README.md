@@ -51,7 +51,7 @@ Galleria runs in Docker on the same host as PostgreSQL and the photo archive, be
 ### 2. Configure
 
 Settings come from two files:
-* `.env`: committed, non-secret defaults (image sizes, the download limit and `SCREEN_CACHE_MB`, the memory kept for resized photos).
+* `.env`: committed, non-secret defaults (image sizes, the download limit, `SCREEN_CACHE_MB`, the memory kept for resized photos, and `CLIENT_HINTS`, see below).
 * `.env.local`: your deployment's settings and secrets. Create it next to `docker-compose.yaml`; it is never committed and never copied into the image.
 
 ```sh
@@ -82,6 +82,8 @@ GOOGLE_ANALYTICS_API_SECRET=…
 Register `<BETTER_AUTH_URL><BASE_PATH>/api/auth/callback/<provider>` as the callback URL in each OAuth app (for example `https://example.com/photos/api/auth/callback/github`).
 
 Over HTTPS, the session cookies get the `__Secure-` prefix. If you serve the app over plain HTTP, set `BETTER_AUTH_URL` to its `http://` address, or signing in won't work.
+
+The access log records each visitor's browser, whether it is a mobile device, and which one. Chromium browsers send the browser and the mobile flag with every request, but they hide the device model: Chrome on Android reports every phone as `K`. So pages ask for the model with the `Sec-CH-UA-Model` Client Hint, set in `CLIENT_HINTS` (comma-separated hint names). If your visitors are in the EU, consider setting it empty in `.env.local` (`CLIENT_HINTS=`): asking a browser for information it doesn't send by itself, for logging, may need the visitor's consent under the ePrivacy Directive. The log then shows the browser and the mobile flag, without the model. It is read at startup, so `npm run docker-deploy` applies a change.
 
 ### 3. Build and run
 

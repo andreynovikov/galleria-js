@@ -277,6 +277,42 @@ test.describe('image URLs', () => {
     })
 })
 
+test.describe('client hints', () => {
+    test('are asked for by pages only, without delaying the first request', async ({ request }) => {
+        const page = await request.get(GEORGIA)
+        expect(page.headers()['accept-ch']).toBe('Sec-CH-UA-Model')
+        // Critical-CH made Chrome repeat the first request of a visit
+        expect(page.headers()['critical-ch']).toBeUndefined()
+        const photo = await request.get(`${GEORGIA}/IMG_0001.jpg?format=thumbnail&size=s`)
+        expect(photo.headers()['accept-ch']).toBeUndefined()
+    })
+
+    test('give the device model of Chrome on Android to the log', async ({ request }, testInfo) => {
+        const hash = createHash('sha1').update(`${testInfo.testId}-${testInfo.retry}`).digest()
+        const ip = `10.8.${hash[0]}.${hash[1]}`
+        // What Chrome on Android sends: its reduced user agent always names the device "K", and the brand, mobile
+        // flag and platform come without asking. The model is the hint pages ask for.
+        const response = await request.get(`${GEORGIA}/IMG_0001.jpg?format=thumbnail&size=s`, {
+            headers: {
+                'x-real-ip': ip,
+                'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+                'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+                'sec-ch-ua-mobile': '?1',
+                'sec-ch-ua-platform': '"Android"',
+                'sec-ch-ua-model': '"Pixel 7"'
+            }
+        })
+        expect(response.status()).toBe(200)
+        await expect.poll(async () => {
+            const [row] = await db()<{ meta: { browser?: object, device?: object } }[]>`SELECT meta FROM log WHERE ip = ${ip}`
+            return row && { browser: row.meta.browser, device: row.meta.device }
+        }).toEqual({
+            browser: { name: 'Chrome', version: '131', major: '131' },
+            device: { type: 'mobile', vendor: 'Google', model: 'Pixel 7' }
+        })
+    })
+})
+
 test('security headers are sent', async ({ request }) => {
     for (const url of ['/', GEORGIA, `${GEORGIA}/IMG_0001.jpg`]) {
         const headers = (await request.get(url)).headers()

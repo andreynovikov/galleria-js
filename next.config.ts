@@ -25,20 +25,12 @@ const nextConfig: NextConfig = {
     output: 'standalone',
     // exifr loads fs/zlib with dynamic require() which does not work when bundled
     serverExternalPackages: ['exifr'],
+    // Client Hints are asked for by proxy.ts, with CLIENT_HINTS read at runtime
     async headers() {
-        const getHighEntropyValues = 'Sec-CH-UA-Full-Version-List, Sec-CH-UA-Mobile, Sec-CH-UA-Model, Sec-CH-UA-Platform, Sec-CH-UA-Platform-Version, Sec-CH-UA-Arch, Sec-CH-UA-Bitness'
         return [
             {
                 source: '/:path*',
                 headers: [
-                    {
-                        key: 'accept-ch',
-                        value: getHighEntropyValues
-                    },
-                    {
-                        key: 'critical-ch',
-                        value: getHighEntropyValues
-                    },
                     {
                         key: 'content-security-policy',
                         value: contentSecurityPolicy

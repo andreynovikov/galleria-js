@@ -4,6 +4,17 @@ import { getSessionFromHeaders } from './auth'
 
 const basePath = process.env.BASE_PATH ?? ''
 
+/**
+ * Client Hints that pages ask browsers for (`CLIENT_HINTS`, comma-separated), for the device and browser shown in
+ * `/history`. Chromium browsers send the brand, major version, platform and mobile flag anyway; the others have to be
+ * asked for, and are sent from the next request on (images and server actions, which are what gets logged).
+ */
+const clientHints = (process.env.CLIENT_HINTS ?? '')
+    .split(',')
+    .map(hint => hint.trim())
+    .filter(hint => /^Sec-CH-[A-Za-z-]+$/i.test(hint))
+    .join(', ')
+
 export async function proxy(request: NextRequest) {
     if (request.method === 'POST') // Do not intercept next.js requests
         return
@@ -24,6 +35,12 @@ export async function proxy(request: NextRequest) {
         const url = request.nextUrl.clone()
         url.pathname = '/image' + request.nextUrl.pathname
         return NextResponse.rewrite(url)
+    }
+    // Not Critical-CH: browsers would repeat the first request of a visit to send the hints, which only the log uses
+    if (clientHints !== '') {
+        const response = NextResponse.next()
+        response.headers.set('accept-ch', clientHints)
+        return response
     }
 }
 
