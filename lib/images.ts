@@ -55,6 +55,14 @@ export function syncBundle(bundle: string, updateMetadata = false): Promise<void
 }
 
 /**
+ * Whether an album's folder exists, as one `stat`. Album pages check it before sending anything: once streaming
+ * starts, the status code can't become 404. Errors other than `ENOENT` count as existing; the sync reports them.
+ */
+export async function bundleExists(bundle: string) {
+    return await stat(join(photosFolder(), bundle)).then(() => true, e => (e as NodeJS.ErrnoException)?.code !== 'ENOENT')
+}
+
+/**
  * Sync for an album page view. It costs a `stat` of the folder when nothing can have changed: the folder is the same
  * as at the last sync (adding, removing or renaming a file changes its modification time) and that sync was less
  * than a minute ago. Files changed in place are picked up after that minute, or by the periodic scan.

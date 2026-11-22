@@ -73,6 +73,8 @@ test.describe('album sync', () => {
             await rm(join(folder, 'a.jpg'))
             await page.goto(bundle)
             await expect(page.getByRole('img', { name: 'Ничего не найдено' })).toBeVisible()
+            // The header is sent before the photos are known, so an empty album has it too
+            await expect(page.getByRole('link', { name: 'Все альбомы' })).toBeVisible()
             expect(await albumCount()).toBeNull()
         } finally {
             await rm(folder, { recursive: true, force: true })

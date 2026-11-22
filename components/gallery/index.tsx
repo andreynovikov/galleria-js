@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { after } from 'next/server'
@@ -8,9 +9,9 @@ import NothingFound from './nothing-found'
 
 import { getRestrictedLabels, listImages, parseImageOrder, resolveLabels } from '@/lib/db'
 import { downloadMaxImages, thumbnailWidths } from '@/lib/image'
-import { syncBundleOnView } from '@/lib/images'
+import { bundleExists, syncBundleOnView } from '@/lib/images'
 import { bool, param, parseDate, queryString, urlPath, type SearchParams } from '@/lib/utils'
-import { censorshipLevel, getSession, isAdmin } from '@/auth'
+import { censorshipLevel, getSession, isAdmin, type Session } from '@/auth'
 
 import GaEvent from './ga-event'
 import styles from './gallery.module.css'
@@ -35,23 +36,51 @@ interface GalleryProps {
     searchParams: SearchParams
 }
 
+/**
+ * A gallery of one album (`bundle`) or of all of them. Everything that decides the status code (the sign-in redirect,
+ * a missing album's 404) is done first; then the header is sent at once, and the photos follow when the album sync
+ * and the listing are done.
+ */
 export default async function Gallery({ bundle, searchParams }: GalleryProps) {
     const session = await getSession()
     const t = await getTranslations('Gallery')
 
     const labelsParam = param(searchParams, '-filt.labels')
     const labels = labelsParam !== undefined ? await resolveLabels(labelsParam.split(',')) : undefined
-    const query = queryString(searchParams)
 
     // Filtering by restricted label requires signing in. It is checked after resolving labels, because they can be
     // given both by name and by id.
     if (!session && labels !== undefined && labels.length > 0) {
         const restrictedLabels = await getRestrictedLabels()
         if (labels.some(label => restrictedLabels.includes(label))) {
-            const callbackUrl = `${basePath}${urlPath(bundle ?? '/')}?${query}`
+            const callbackUrl = `${basePath}${urlPath(bundle ?? '/')}?${queryString(searchParams)}`
             redirect(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`)
         }
     }
+    if (bundle && !await bundleExists(bundle))
+        notFound()
+
+    return (
+        <>
+            <div className={styles.topMenu}>
+                <Link href="/">{t('allAlbums')}</Link>
+            </div>
+            <Suspense fallback={<p className={styles.loading}>{t('loading')}</p>}>
+                <GalleryPhotos bundle={bundle} labels={labels} searchParams={searchParams} session={session} />
+            </Suspense>
+        </>
+    )
+}
+
+interface GalleryPhotosProps extends GalleryProps {
+    labels?: number[]
+    session: Session | null
+}
+
+async function GalleryPhotos({ bundle, labels, searchParams, session }: GalleryPhotosProps) {
+    const t = await getTranslations('Gallery')
+
+    const query = queryString(searchParams)
     const notlabels = param(searchParams, '-filt.notlabels')?.split(',').map(Number).filter(l => l > 0)
     const from = parseDate(param(searchParams, '-filt.from'))
     const till = parseDate(param(searchParams, '-filt.till'))
@@ -69,6 +98,7 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
         try {
             syncing = !await settlesWithin(sync, syncWait)
         } catch (e) {
+            // Removed since Gallery checked it. The page is already sent with 200, Next shows the not-found page.
             if ((e as NodeJS.ErrnoException)?.code === 'ENOENT')
                 notFound()
             console.error(`Can not sync ${bundle}:`, e)
@@ -119,9 +149,6 @@ export default async function Gallery({ bundle, searchParams }: GalleryProps) {
 
     return (
         <>
-            <div className={styles.topMenu}>
-                <Link href="/">{t('allAlbums')}</Link>
-            </div>
             {syncNotice}
             <Album photos={photos} signedIn={!!session} downloadable={!!session && photos.length <= downloadMaxImages} basePath={basePath} />
             {gaEvent}

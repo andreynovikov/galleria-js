@@ -29,3 +29,16 @@
     text-align: center;
     color: #666;
 }
+
+/* Shown only when the photos take a while, so that a quick page doesn't flash it */
+.loading {
+    text-align: center;
+    color: #666;
+    animation: appear 0s 0.5s both;
+}
+
+@keyframes appear {
+    from {
+        visibility: hidden;
+    }
+}

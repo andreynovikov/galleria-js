@@ -11,6 +11,7 @@
     "Gallery": {
         "allAlbums": "All albums",
         "syncing": "The album is being updated, the remaining photos will appear later.",
+        "loading": "Loading photos…",
         "nothingFound": "Nothing found"
     },
     "Album": {
