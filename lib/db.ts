@@ -311,6 +311,9 @@ export async function listImages(filters: ImageFilters, order: string) {
 
     where.push(sql`censored <= ${filters.censored}`)
 
+    const direction = order.charAt(0) === '-' ? sql`DESC` : sql`ASC`
+    const orderBy = order.charAt(0) === '-' ? order.substring(1) : order
+
     let join = sql``
     let group = sql``
     if (labels.length > 0) {
@@ -339,7 +342,7 @@ export async function listImages(filters: ImageFilters, order: string) {
       ${labels.length > 0 ? sql`
       HAVING ${and(labels)}
       ` : sql``}
-      ORDER BY ${sql(order)}
+      ORDER BY ${sql(orderBy)} ${direction}
     `
     return images
 }
