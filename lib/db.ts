@@ -131,11 +131,10 @@ export interface LogUser {
     meta: { browser?: { name?: string, major?: string, type?: string }, device?: { vendor?: string, model?: string, type?: string }, ua?: string }[]
 }
 
-export interface UserLogFilters {
+export interface UserLogFilters extends Pick<LogFilters, 'label' | 'status'> {
     ip: string
+    /** `YYYY-MM-DD` */
     day?: string
-    label?: string
-    status?: string
 }
 
 export interface UserLogImage {
@@ -660,7 +659,7 @@ export async function getUserLog(filters: UserLogFilters) {
     if (filters.label)
         where.push(sql`label = ${filters.label}`)
 
-    if (filters.status)
+    if (filters.status !== undefined)
         where.push(sql`status <= ${filters.status}`)
 
     const images = await sql<UserLogImage[]>`

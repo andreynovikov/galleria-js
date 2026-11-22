@@ -72,6 +72,43 @@ test.describe('history pages', () => {
     })
 })
 
+test.describe('visitor day page', () => {
+    test.use({ storageState: asAdmin })
+
+    test('filters by action, and reports malformed addresses and dates as not found', async ({ page }, testInfo) => {
+        const ip = `10.6.${Math.floor(testInfo.workerIndex / 250)}.${testInfo.workerIndex % 250 + 1}`
+        const original = await imageId(GEORGIA, 'IMG_0001.jpg')
+        const viewed = await imageId(GEORGIA, 'IMG_0002.jpg')
+        const now = new Date()
+        const day = now.toISOString().slice(0, 10)
+        await db()`DELETE FROM log WHERE ip = ${ip}`
+        // ACTION_ORIGINAL and ACTION_VIEW
+        await db()`INSERT INTO log (image, ip, status, ctime) VALUES (${original}, ${ip}, 0, ${now}), (${viewed}, ${ip}, 3, ${now})`
+        try {
+            const photo = (name: string) => page.locator(`a[href="${GEORGIA}/${name}"]`)
+
+            await page.goto(`/history/${ip}/${day}`)
+            await expect(photo('IMG_0001.jpg')).toBeVisible()
+            await expect(photo('IMG_0002.jpg')).toBeVisible()
+
+            // Status 0 used to be dropped as falsy
+            await page.goto(`/history/${ip}/${day}?-filt.status=0`)
+            await expect(photo('IMG_0001.jpg')).toBeVisible()
+            await expect(photo('IMG_0002.jpg')).toHaveCount(0)
+
+            // Malformed filters are ignored instead of failing in SQL
+            const ignored = await page.goto(`/history/${ip}/${day}?-filt.status=abc&-filt.label=x`)
+            expect(ignored?.status()).toBe(200)
+            await expect(photo('IMG_0002.jpg')).toBeVisible()
+
+            for (const path of [`/history/not-an-ip/${day}`, `/history/${ip}/2026-13-45`, `/history/${ip}/yesterday`, '/history/999.1.1.1'])
+                expect((await page.goto(path))?.status(), path).toBe(404)
+        } finally {
+            await db()`DELETE FROM log WHERE ip = ${ip}`
+        }
+    })
+})
+
 test.describe('visitor with admin account id from another provider', () => {
     test.use({ storageState: asImpostor })
 

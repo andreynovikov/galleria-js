@@ -1,9 +1,12 @@
+import { isIP } from 'net'
 import { Fragment } from 'react'
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import moment, { type Moment } from 'moment'
 
+import { historyFilters, historyQuery } from '@/components/history/days'
+
 import { getUserLog, type UserLogFilters, type UserLogImage } from '@/lib/db'
-import { param, urlPath } from '@/lib/utils'
+import { urlPath } from '@/lib/utils'
 import { getSession, isAdmin } from '@/auth'
 
 const basePath = process.env.BASE_PATH ?? ''
@@ -31,13 +34,18 @@ export default async function UserHistory(props: PageProps<'/history/[ip]'> | Pa
     if (!isAdmin(session))
         redirect('/signin')
 
-    const filters: UserLogFilters = {
-        ip: decodeURIComponent(params.ip),
-        label: param(searchParams, '-filt.label'),
-        status: param(searchParams, '-filt.status')
+    // Malformed addresses and dates are not found rather than failing in SQL; malformed filters are ignored
+    const ip = decodeURIComponent(params.ip)
+    if (isIP(ip) === 0)
+        notFound()
+    const { label, status } = historyFilters(historyQuery(searchParams))
+    const filters: UserLogFilters = { ip, label, status }
+    if (params.day) {
+        const day = decodeURIComponent(params.day)
+        if (!moment(day, 'YYYY-MM-DD', true).isValid())
+            notFound()
+        filters.day = day
     }
-    if (params.day)
-        filters.day = decodeURIComponent(params.day)
     const images = await getUserLog(filters)
 
     const days = images.reduce<Day[]>((days, logImage) => {
