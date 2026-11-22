@@ -50,13 +50,11 @@ export async function getImage(id: number): Promise<ImageInfo> {
         if (labels.some(label => restricted.includes(label.id)))
             return { id }
     }
-    await image.expand()
-    const { FocalLength, ISO, ExposureTime, FNumber } = image.info ?? {}
     return {
         id,
         description: image.description,
-        labels: image.labels,
-        info: { FocalLength, ISO, ExposureTime, FNumber }
+        labels: image.labels ?? await image.fetchLabels(),
+        info: await image.getCameraSettings()
     }
 }
 

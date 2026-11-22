@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Galleria is a self-hosted photo archive viewer (Next.js 16 App Router with Turbopack, React 19, PostgreSQL via `postgres` v4). Everything is TypeScript with `strict` on. It has no admin interface: the filesystem under `PHOTOS_FOLDER` is the source of truth, and the database is a cache of image metadata (dimensions, EXIF/IPTC captions, keywords → labels, shooting time) plus access logs. The UI text is in Russian.
+Galleria is a self-hosted photo archive viewer (Next.js 16 App Router with Turbopack, React 19, PostgreSQL via `postgres` v4). Everything is TypeScript with `strict` on. It has no admin interface: the filesystem under `PHOTOS_FOLDER` is the source of truth, and the database is a cache of image metadata (dimensions, EXIF/IPTC captions, keywords → labels, shooting time, and the camera settings shown in the lightbox, in `image.exif`) plus access logs. The UI text is in Russian.
 
 ## Commands
 

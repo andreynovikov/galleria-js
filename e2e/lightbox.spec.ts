@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { GEORGIA, description, imageId, labelId, lightbox, thumbnail } from './helpers'
+import { GEORGIA, db, description, imageId, labelId, lightbox, thumbnail } from './helpers'
 
 test.describe('lightbox', () => {
     test('shows photo with its description', async ({ page }) => {
@@ -14,6 +14,25 @@ test.describe('lightbox', () => {
         await expect(description(page).locator('.title')).toHaveText('Вид на Омало')
         await expect(description(page).locator('.labels')).toHaveText('Горы, Омало')
         await expect(description(page).locator('.exif')).toHaveText('35mm, ISO 100, 1/250s, f/8')
+    })
+
+    test('takes camera settings from the database, and from the file once for photos imported before', async ({ page }) => {
+        const id = await imageId(GEORGIA, 'IMG_0001.jpg')
+        const settings = { FocalLength: 35, ISO: 100, ExposureTime: 0.004, FNumber: 8 }
+        const stored = async () => (await db()<{ exif: object | null }[]>`SELECT exif FROM image WHERE id = ${id}`)[0].exif
+        // Read during sync
+        expect(await stored()).toEqual(settings)
+
+        // As after the migration which added the column. Other tests showing this photo restore it the same way.
+        await db()`UPDATE image SET exif = NULL WHERE id = ${id}`
+        await page.goto(GEORGIA)
+        await thumbnail(page, id).click()
+        await expect(description(page).locator('.exif')).toHaveText('35mm, ISO 100, 1/250s, f/8')
+        expect(await stored()).toEqual(settings)
+
+        // Photos without camera settings are stored with none, so their files aren't read again either
+        const other = await imageId(GEORGIA, 'IMG_0002.jpg')
+        expect((await db()<{ exif: object | null }[]>`SELECT exif FROM image WHERE id = ${other}`)[0].exif).toEqual({})
     })
 
     test('navigates between photos', async ({ page }) => {

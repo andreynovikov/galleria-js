@@ -14,7 +14,8 @@ CREATE TABLE image (
     mtime timestamp without time zone,
     starred integer DEFAULT 0 NOT NULL,
     exportable boolean DEFAULT true NOT NULL,
-    censored integer DEFAULT 0 NOT NULL
+    censored integer DEFAULT 0 NOT NULL,
+    exif jsonb
 );
 
 CREATE TABLE label (

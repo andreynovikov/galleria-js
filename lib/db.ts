@@ -35,9 +35,19 @@ export interface ImageRecord {
     starred: number
     exportable: boolean
     censored: number
+    /** `null` until read from the file, `{}` when it has none */
+    exif: CameraSettings | null
 }
 
-export type ImageUpdate = Partial<Pick<ImageRecord, 'width' | 'height' | 'orientation' | 'description' | 'stime'>>
+export type ImageUpdate = Partial<Pick<ImageRecord, 'width' | 'height' | 'orientation' | 'description' | 'stime' | 'exif'>>
+
+/** Camera settings shown in the lightbox, named as the EXIF tags */
+export type CameraSettings = {
+    FocalLength?: number
+    ISO?: number
+    ExposureTime?: number
+    FNumber?: number
+}
 
 export interface Label {
     id: number
@@ -412,9 +422,14 @@ export async function getImageByName(bundle: string, name: string) {
  * Inserts a photo with its labels in one transaction. Returns its id, or `undefined` if the photo is already there
  * (another sync of the same album added it meanwhile).
  */
+/** Columns of a photo update, with JSON values wrapped for postgres */
+function imageColumns({ exif, ...data }: ImageUpdate) {
+    return exif === undefined ? data : { ...data, exif: exif === null ? null : sql.json(exif) }
+}
+
 export async function addImage(bundle: string, name: string, data: ImageUpdate, labels: number[]) {
     return sql.begin(async sql => {
-        const image = { bundle, name, ctime: new Date().toISOString(), ...data }
+        const image = { bundle, name, ctime: new Date().toISOString(), ...imageColumns(data) }
         const [row] = await sql<{ id: number }[]>`
           INSERT INTO image ${sql(image)}
           ON CONFLICT (bundle, name) DO NOTHING
@@ -430,7 +445,7 @@ export async function addImage(bundle: string, name: string, data: ImageUpdate, 
 
 export async function updateImage(id: number, data: ImageUpdate) {
     await sql`
-      UPDATE image SET ${sql(data)}
+      UPDATE image SET ${sql(imageColumns(data))}
       WHERE id = ${id}
     `
 }

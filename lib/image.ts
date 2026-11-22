@@ -6,7 +6,7 @@ import sharp from 'sharp'
 import { decode } from 'utf8'
 
 import { getImageById, getImageByName, addImage, deleteImage, updateImage, getLabelIds, getImageLabels, setImageLabels } from './db'
-import type { ImageRecord, ImageUpdate, Label } from './db'
+import type { CameraSettings, ImageRecord, ImageUpdate, Label } from './db'
 import { BufferCache } from './cache'
 
 export const thumbnailWidths: Record<string, number> = JSON.parse(process.env.THUMBNAIL_WIDTH as string)
@@ -49,20 +49,12 @@ function lock(width: number, alpha: number) {
         .toBuffer())
 }
 
-export interface ExifInfo {
-    FocalLength?: number
-    ISO?: number
-    ExposureTime?: number
-    FNumber?: number
-    [key: string]: unknown
-}
-
 /** Photo description shown in the lightbox (returned by the `getImage` action) */
 export interface ImageInfo {
     id: number
     description?: string | null
     labels?: Label[]
-    info?: Pick<ExifInfo, 'FocalLength' | 'ISO' | 'ExposureTime' | 'FNumber'>
+    info?: CameraSettings
 }
 
 /** Exifr keeps an opened file handle which is not exposed in its type definitions */
@@ -86,7 +78,18 @@ interface Tags {
     ModifyDate?: Date
 }
 
-/** Dimensions, caption, shooting time and keywords of a photo file */
+/** Camera settings among the tags read by exifr; ISO can come as a list of values */
+function cameraSettings(tags: Tags): CameraSettings {
+    const settings: CameraSettings = {}
+    for (const key of ['FocalLength', 'ISO', 'ExposureTime', 'FNumber'] as const) {
+        const value = Array.isArray(tags[key]) ? (tags[key] as unknown[])[0] : tags[key]
+        if (typeof value === 'number' && Number.isFinite(value))
+            settings[key] = value
+    }
+    return settings
+}
+
+/** Dimensions, caption, shooting time, camera settings and keywords of a photo file */
 async function readMetadata(path: string): Promise<{ data: ImageUpdate, labels?: string[] }> {
     const exr = new Exifr({
         tiff: true,
@@ -123,6 +126,8 @@ async function readMetadata(path: string): Promise<{ data: ImageUpdate, labels?:
     if (stime !== undefined)
         data.stime = stime
 
+    data.exif = cameraSettings(info)
+
     return { data, labels }
 }
 
@@ -135,9 +140,9 @@ export default class Image implements Partial<ImageRecord> {
     censored?: number
     description?: string | null
     ctime?: Date | null
+    exif?: CameraSettings | null
     path?: string
     labels?: Label[]
-    info?: ExifInfo
     private fetched = false
 
     static fromId(id: number) {
@@ -215,26 +220,33 @@ export default class Image implements Partial<ImageRecord> {
         return this.labels
     }
 
-    async expand() {
-        const path = await this.ensurePath()
-        if (this.info)
-            return
-
-        if (this.labels === undefined)
-            await this.fetchLabels()
-
-        // Only camera settings are read, the description comes from the database
-        const exr = new Exifr({
-            tiff: true,
-            xmp: false,
-            iptc: false,
-            exif: true,
-            gps: false,
-            translateValues: false
-        })
-        await exr.read(path)
-        this.info = await exr.parse()
-        await closeExifr(exr)
+    /**
+     * Camera settings from the database. Photos imported before they were stored there have none yet: they are read
+     * from the file once and stored.
+     */
+    async getCameraSettings() {
+        if (!this.fetched)
+            await this.fetchData()
+        if (this.exif === undefined || this.exif === null) {
+            const exr = new Exifr({
+                tiff: true,
+                xmp: false,
+                iptc: false,
+                exif: true,
+                gps: false,
+                translateValues: false
+            })
+            let tags: Tags
+            try {
+                await exr.read(await this.ensurePath())
+                tags = (await exr.parse()) ?? {}
+            } finally {
+                await closeExifr(exr)
+            }
+            this.exif = cameraSettings(tags)
+            await updateImage(await this.getId(), { exif: this.exif })
+        }
+        return this.exif
     }
 
     async setLabels(labelNames: string[]) {
