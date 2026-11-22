@@ -28,15 +28,19 @@ CREATE TABLE label_image (
     label integer NOT NULL
 );
 
+-- Partitioned by month (log_YYYY_MM), so old months are dropped as a whole (LOG_RETENTION_DAYS). The app creates the
+-- partitions ahead (lib/log-retention.ts); the default partition takes rows of months without one.
 CREATE TABLE log (
     image integer NOT NULL,
     ip inet NOT NULL,
     status integer NOT NULL,
-    ctime timestamp without time zone DEFAULT now(),
+    ctime timestamp without time zone DEFAULT now() NOT NULL,
     visitor_id character varying,
     visitor_provider character varying,
     meta jsonb
-);
+) PARTITION BY RANGE (ctime);
+
+CREATE TABLE log_default PARTITION OF log DEFAULT;
 
 CREATE TABLE visitor (
     id character varying NOT NULL,
@@ -67,5 +71,5 @@ ALTER TABLE ONLY label_image
 ALTER TABLE ONLY label_image
     ADD CONSTRAINT label_image_label_fkey FOREIGN KEY (label) REFERENCES label(id) ON DELETE RESTRICT;
 
-ALTER TABLE ONLY log
+ALTER TABLE log
     ADD CONSTRAINT log_image_fkey FOREIGN KEY (image) REFERENCES image(id) ON DELETE CASCADE;

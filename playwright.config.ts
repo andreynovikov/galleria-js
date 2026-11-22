@@ -29,7 +29,7 @@ export default defineConfig({
             name: 'mobile',
             use: { ...devices['Pixel 7'] },
             // Plain HTTP checks do not depend on the browser
-            testIgnore: /(api|nginx)\.spec\.ts/
+            testIgnore: /(api|log|nginx)\.spec\.ts/
         }
     ],
     webServer: {

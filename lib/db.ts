@@ -688,3 +688,63 @@ export async function getUserLog(filters: UserLogFilters) {
     `
     return images
 }
+
+/** Whether `log` is partitioned: databases created before monthly partitions need a migration */
+export async function isLogPartitioned() {
+    const [row] = await sql<{ relkind: string }[]>`SELECT relkind FROM pg_class WHERE oid = 'log'::regclass`
+    return row?.relkind === 'p'
+}
+
+/** Names of the monthly partitions of `log` (`log_YYYY_MM`) */
+export async function listLogPartitions() {
+    const rows = await sql<{ name: string }[]>`
+      SELECT c.relname AS name
+      FROM pg_inherits i
+      JOIN pg_class c ON c.oid = i.inhrelid
+      WHERE i.inhparent = 'log'::regclass
+    `
+    return rows.map(row => row.name).filter(name => /^log_\d{4}_\d{2}$/.test(name))
+}
+
+/**
+ * Creates the partition `name` of `log` for `start` ≤ ctime < `end` (`YYYY-MM-DD` dates). Rows of that range in the
+ * default partition are moved into it first: attaching fails while the default partition has any. The default
+ * partition is locked meanwhile, so a row written at the same time can't land there.
+ */
+export async function createLogPartition(name: string, start: string, end: string) {
+    if (!/^log_\d{4}_\d{2}$/.test(name) || !/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end))
+        throw new Error(`Invalid log partition ${name} ${start} ${end}`)
+    await sql.begin(async sql => {
+        await sql`SET LOCAL lock_timeout = '10s'`
+        await sql`LOCK TABLE log_default IN ACCESS EXCLUSIVE MODE`
+        await sql`CREATE TABLE ${sql(name)} (LIKE log INCLUDING DEFAULTS)`
+        await sql`
+          WITH moved AS (
+            DELETE FROM log_default
+            WHERE ctime >= ${start}::timestamp AND ctime < ${end}::timestamp
+            RETURNING *
+          )
+          INSERT INTO ${sql(name)} SELECT * FROM moved
+        `
+        // Bounds of a partition must be literals; they are checked above. Indexes and the foreign key are added.
+        await sql.unsafe(`ALTER TABLE log ATTACH PARTITION ${name} FOR VALUES FROM ('${start}') TO ('${end}')`)
+    })
+}
+
+/** Drops a monthly partition of `log` with all its rows */
+export async function dropLogPartition(name: string) {
+    if (!/^log_\d{4}_\d{2}$/.test(name))
+        throw new Error(`Invalid log partition ${name}`)
+    await sql.begin(async sql => {
+        // Dropping locks `log` itself; better to try again tomorrow than to hold up log writes behind a long query
+        await sql`SET LOCAL lock_timeout = '10s'`
+        await sql`DROP TABLE ${sql(name)}`
+    })
+}
+
+/** Deletes rows older than `before` from the default partition of `log`, which takes months without a partition */
+export async function deleteOldDefaultLog(before: Date) {
+    const result = await sql`DELETE FROM log_default WHERE ctime < ${before}`
+    return result.count
+}
+
