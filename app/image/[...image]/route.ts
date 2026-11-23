@@ -225,9 +225,11 @@ async function respond(request: NextRequest) {
 
         if (ratio < 1)
             width = Math.round(width * ratio)
+        // The configured size caps the long edge, so portrait photos need a proportionally smaller width.
         if (imageWidth < imageHeight)
             width = Math.round(imageWidth / imageHeight * width)
         width = Math.max(width, 1)
+        // Avoid a marginal resize within SCREEN_DELTA, but always transform restricted photos to hide the original.
         if (imageWidth > width * screenDelta || restricted) {
             // Versions kept in memory still go through this route, so access checks and the log stay the same
             source = {
@@ -264,8 +266,8 @@ async function respond(request: NextRequest) {
     if ('file' in source)
         headers.set('accept-ranges', 'bytes')
 
-    // Views answered from the browser cache are logged too, they are views all the same. `If-Modified-Since` counts
-    // only without `If-None-Match`.
+    // Revalidation requests count as server hits even when answered with 304; fresh browser-cache hits never
+    // reach this route. `If-None-Match` takes precedence over `If-Modified-Since`.
     const ifNoneMatch = request.headers.get('if-none-match')
     if (ifNoneMatch !== null ? notModified(ifNoneMatch, etag) : modified !== undefined && notModifiedSince(request.headers.get('if-modified-since'), modified)) {
         log()

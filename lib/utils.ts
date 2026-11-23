@@ -3,6 +3,8 @@ import { Crawlers, Fetchers } from 'ua-parser-js/extensions'
 
 import type { LogMeta } from './db'
 
+// Persisted in log.status; lower values take precedence when history groups a photo's actions with MIN(status).
+// Keep existing numbers stable so old log rows retain their meaning.
 export const ACTION_ORIGINAL = 0
 export const ACTION_DOWNLOAD = 1
 export const ACTION_ZOOM = 2
@@ -77,6 +79,7 @@ export function bool(value: unknown) {
     return value === true || Number(value) > 0 || ['true', '1', 'yes'].includes(String(value).toLowerCase().trim())
 }
 
+/** Assumes the front-end proxy replaces client-supplied forwarding headers with trusted values. */
 export function clientIp(headers: Headers) {
     return (headers.get('x-real-ip') ?? headers.get('x-forwarded-for') ?? '127.0.0.1').split(',')[0]
 }

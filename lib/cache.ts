@@ -17,6 +17,7 @@ export class BufferCache {
     async get(key: string, make: () => Promise<Buffer>, store = true): Promise<Buffer> {
         const cached = this.entries.get(key)
         if (cached !== undefined) {
+            // Reinsert to move this key to the most recently used end of the Map.
             this.entries.delete(key)
             this.entries.set(key, cached)
             return cached

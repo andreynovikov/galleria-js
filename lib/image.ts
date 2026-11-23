@@ -81,6 +81,7 @@ export interface FileVersion {
 }
 
 export function fileVersion(stats: Stats): FileVersion {
+    // JS Dates discard sub-millisecond precision; normalize before comparing file versions with database values.
     return { size: stats.size, mtime: new Date(Math.floor(stats.mtimeMs)) }
 }
 
@@ -133,6 +134,7 @@ async function readMetadata(path: string): Promise<{ data: ImageUpdate, labels?:
     // Labels are left as they are when the file has no keywords at all
     const labels = 'Keywords' in info ? ([] as unknown[]).concat(info['Keywords']).map(decodeString) : undefined
 
+    // EXIF orientations 5–8 swap axes; layout dimensions must match the auto-oriented image produced by sharp.
     if (data.orientation !== undefined && data.orientation >= 5) {
         data.width = height
         data.height = width
@@ -149,6 +151,10 @@ async function readMetadata(path: string): Promise<{ data: ImageUpdate, labels?:
     return { data, labels }
 }
 
+/**
+ * Starts with an id, a path or a loaded row and fetches the rest on demand. Unloaded fields are `undefined`;
+ * checking property ownership would fail because compiled class fields exist even before values are assigned.
+ */
 export default class Image implements Partial<ImageRecord> {
     id?: number
     name?: string

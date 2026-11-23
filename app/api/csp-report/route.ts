@@ -44,6 +44,7 @@ function violation(report: Record<string, unknown>, legacy: boolean): Violation 
 }
 
 function log(violation: Violation) {
+    // Omit document URLs and samples from the key so the same violation across many albums is logged only once.
     const kind = [violation.disposition, violation.directive, violation.blocked, violation.source].join(' ')
     const now = Date.now()
     if (now - (logged.get(kind) ?? 0) < logInterval)

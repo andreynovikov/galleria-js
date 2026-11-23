@@ -213,6 +213,7 @@ function cachedListing<T>(key: string, load: () => Promise<T>): Promise<T> {
     const entry = { expires: Date.now() + listingLifetime, value: load() }
     listings.set(key, entry)
     entry.value.catch(() => {
+        // An invalidation may have replaced this entry while its query was pending; leave the newer one intact.
         if (listings.get(key) === entry)
             listings.delete(key)
     })
@@ -316,6 +317,7 @@ export async function listImages(filters: ImageFilters, order: ImageOrder) {
     if (filters.till)
         where.push(sql`stime <= ${filters.till}`)
 
+    // Test membership across all labels of each photo: filtering join rows in WHERE would lose other matches.
     const labels: Fragment[] = []
     if (filters.labels && filters.labels.length > 0)
         labels.push(...filters.labels.map(label => sql`SUM(CASE WHEN label=${label} THEN 1 ELSE 0 END) > 0`))
@@ -343,6 +345,7 @@ export async function listImages(filters: ImageFilters, order: ImageOrder) {
         group = sql`GROUP BY id`
     }
 
+    // Stable tie-breakers keep lightbox indices consistent when photos share a shooting time or filename.
     const images = await sql<ListedImage[]>`
       SELECT
         id,
@@ -397,6 +400,10 @@ export async function deleteBundleImages(bundle: string) {
     }
 }
 
+/**
+ * Sample candidate ids before joining photos, avoiding a random sort of the whole archive. Gaps in the id range,
+ * duplicate candidates and censorship filtering can yield fewer than `limit` photos, even with oversampling.
+ */
 export async function getRandomImages(limit: number, censored: number) {
     const restrictedLabels = await getRestrictedLabels()
     const hasRestricted = restrictedLabels.length > 0
@@ -460,15 +467,15 @@ export async function getImageByName(bundle: string, name: string) {
     return result.at(0)
 }
 
-/**
- * Inserts a photo with its labels in one transaction. Returns its id, or `undefined` if the photo is already there
- * (another sync of the same album added it meanwhile).
- */
 /** Columns of a photo update, with JSON values wrapped for postgres */
 function imageColumns({ exif, ...data }: ImageUpdate) {
     return exif === undefined ? data : { ...data, exif: exif === null ? null : sql.json(exif) }
 }
 
+/**
+ * Inserts a photo with its labels in one transaction. Returns its id, or `undefined` if the photo is already there
+ * (another sync of the same album added it meanwhile).
+ */
 export async function addImage(bundle: string, name: string, data: ImageUpdate, labels: number[]) {
     return sql.begin(async sql => {
         const image = { bundle, name, ctime: new Date().toISOString(), ...imageColumns(data) }
@@ -575,6 +582,7 @@ export async function getLabelIds(labels: string[]) {
 export async function getUser(id: string, provider: string, userData: object): Promise<Visitor> {
     const data: Record<string, JSONValue | undefined> = { ...userData }
     delete data['id'] // drop dynamic user id
+    // Only new visitors get the default level; repeat sign-ins refresh the profile without changing access.
     const censorship = 1
     const result = await sql<(Omit<Visitor, 'name' | 'email' | 'image'> & { data: Record<string, JSONValue> })[]>`
       INSERT INTO visitor ${sql({ id, provider, censorship, data: sql.json(data) })}

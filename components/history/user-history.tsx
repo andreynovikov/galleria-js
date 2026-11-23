@@ -56,6 +56,7 @@ export default async function UserHistory(props: PageProps<'/history/[ip]'> | Pa
         const day = moment.utc(logImage.day ?? params.day)
         const image: HistoryImage = {
             ...logImage,
+            // Several events can contribute metadata to one photo; show the greatest zoom reached that day.
             meta: logImage.meta.reduce<{ zoom?: number }>((meta, item) => {
                 if (item?.zoom) {
                     meta.zoom = Math.max(item.zoom, meta.zoom ?? 1)

@@ -80,6 +80,7 @@ export default function Album(props: AlbumProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
 
+    // #view-<index>-<photo id> restores the slide and grid position; opener links scroll without opening a slide.
     const setIndexFromHash = (opener: string | null) => {
         if (window.location.hash.startsWith('#view-')) {
             const hs = window.location.hash.split('-')
@@ -143,6 +144,7 @@ export default function Album(props: AlbumProps) {
         window.location.assign(`${basePath}/download?images=${ids.join()}`)
     }
 
+    // Reserve the final, screen-size source for the lightbox; the grid should request only cached thumbnails.
     const thumbnails: Thumbnail[] = useMemo(() => photos.map(image => (
         {
             ...image,
@@ -199,6 +201,7 @@ export default function Album(props: AlbumProps) {
                 view: async ({ index: currentIndex }) => {
                     setIndex(currentIndex)
                     const location = window.location.href.split('#')[0] + '#view-' + currentIndex + '-' + photos[currentIndex].id
+                    // Opening adds one history entry; changing slides replaces it so Back closes the lightbox.
                     if (window.location.hash.startsWith('#view-'))
                         window.history.replaceState({ view: photos[currentIndex].id }, '', location)
                     else

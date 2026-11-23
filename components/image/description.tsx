@@ -17,6 +17,7 @@ interface ImageDescriptionProps extends Omit<HTMLAttributes<HTMLDivElement>, 'id
 export default function ImageDescription({ id, ...props }: ImageDescriptionProps) {
     const [image, setImage] = useState<ImageInfo | null>(null)
 
+    // Fetch captions and EXIF only when the lightbox renders a slide, keeping the initial album payload small.
     useEffect(() => {
         getImage(id).then(data => setImage(data))
     }, [id])
