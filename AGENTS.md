@@ -10,7 +10,7 @@
 
 ## Stack and commands
 
-Next.js 16 App Router with Turbopack, React 19, strict TypeScript (`allowJs: false`), PostgreSQL through `postgres` v4, Better Auth, next-intl, sharp and exifr. Docker and CI use Node 24. Use npm and the committed lockfile. Keep ESLint on 9.x for plugin compatibility; TypeScript is on major 5, which the owner retained during the dependency upgrade.
+Next.js 16 App Router with Turbopack, React 19, strict TypeScript (`allowJs: false`), PostgreSQL through `postgres` v4, Better Auth, next-intl, sharp and exifr. Docker and CI use Node 24. Use npm and the committed lockfile. Keep ESLint on 9.x for plugin compatibility; TypeScript is on major 6.
 
 | Command | Purpose |
 | --- | --- |
